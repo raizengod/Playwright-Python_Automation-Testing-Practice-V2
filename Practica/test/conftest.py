@@ -256,3 +256,26 @@ def set_up_byTitle(playwright_page: Page) -> Generator[Page, None, None]:
     fg.scroll_pagina(0, 2550)
     
     yield playwright_page
+    
+@pytest.fixture(scope="function")
+def set_up_byTestId(playwright_page: Page) -> Generator[Page, None, None]:
+    """
+    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    """
+    # Espera a que el DOM de la página se cargue antes de continuar
+    playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
+    playwright_page.set_default_timeout(10000)
+    
+    fg = Funciones_Globales(playwright_page)
+    ml = MenuLocatorsPage(playwright_page)
+    
+    fg.validar_url_actual("https://testautomationpractice.blogspot.com")
+    fg.esperar_fijo(1)
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    
+    fg.validar_url_actual(".*/p/playwrightpractice.html")
+    fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
+    
+    fg.scroll_pagina(0, 3000)
+    
+    yield playwright_page
