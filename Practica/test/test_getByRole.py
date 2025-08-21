@@ -8,8 +8,8 @@ from Practica.locator.locator_getByRole import RoleLocatorsPage
 from Practica.locator.locator_barraMenu import MenuLocatorsPage
 from Practica.utils import config
 
-def test_ir_a_opcion_playwright(set_up_Basico):
-    page= set_up_Basico
+def test_ir_a_opcion_playwright(set_up_ir_a):
+    page= set_up_ir_a
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
@@ -26,8 +26,8 @@ def test_ir_a_opcion_playwright(set_up_Basico):
     #Luego del paso anterior, ahora si podemos llamar a nuestras funciones creadas en el archivo POM
     fg.esperar_fijo(1)
     
-def test_verificar_titulo_seccion(set_up_ir_a):
-    page= set_up_ir_a
+def test_verificar_titulo_seccion(set_up_by_role):
+    page= set_up_by_role
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
@@ -39,8 +39,8 @@ def test_verificar_titulo_seccion(set_up_ir_a):
     fg.validar_elemento_visible(lr.labelDescripcion, "validar_elemento_visible_Descripción_getByRole", config.SCREENSHOT_DIR)
     fg.verificar_texto_contenido(lr.labelDescripcion, "implicit ARIA roles.", "verificar_texto_contenido_Descripción", config.SCREENSHOT_DIR)
     
-def test_clic_en_botones(set_up_ir_a):
-    page= set_up_ir_a
+def test_clic_en_botones(set_up_by_role):
+    page= set_up_by_role
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
@@ -54,8 +54,8 @@ def test_clic_en_botones(set_up_ir_a):
     fg.validar_elemento_visible(lr.botonRoleEnDive, "validar_elemento_visible_Div_with_button_role", config.SCREENSHOT_DIR)
     fg.verificar_texto_contenido(lr.botonRoleEnDive, "Div with button role", "verificar_texto_contenido_Div_with_button_role", config.SCREENSHOT_DIR)
     
-def test_completar_seccion_username(set_up_ir_a):
-    page= set_up_ir_a
+def test_completar_seccion_username(set_up_by_role):
+    page= set_up_by_role
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
@@ -73,8 +73,8 @@ def test_completar_seccion_username(set_up_ir_a):
     fg.desmarcar_checkbox(lr.checkTerminosYCondiciones, "desmarcar_checkbox_Terminos_Y_Condiciones", config.SCREENSHOT_DIR)
     fg.marcar_checkbox(lr.checkTerminosYCondiciones, "marcar_checkbox_Terminos_Y_Condiciones", config.SCREENSHOT_DIR)
     
-def test_sección_nacigation(set_up_ir_a):
-    page= set_up_ir_a
+def test_sección_navigation(set_up_by_role):
+    page= set_up_by_role
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
@@ -89,8 +89,8 @@ def test_sección_nacigation(set_up_ir_a):
     fg.validar_elemento_visible(lr.mensajeAlerta, "validar_elemento_visible_mensaje_alerta", config.SCREENSHOT_DIR)
     fg.verificar_texto_contenido(lr.mensajeAlerta,"This is an important alert", "verificar_texto_contenido_mensaje_aletar", config.SCREENSHOT_DIR)
     
-def test_boton_dinamico(set_up_ir_a):
-    page= set_up_ir_a
+def test_boton_dinamico(set_up_by_role):
+    page= set_up_by_role
     
     #IMPORTANTE: Creamos un objeto de tipo función 'Funciones_Globales'
     fg= Funciones_Globales(page) #Este page va ser enviado a la función __init__ en el archivo FuncionesPOM
