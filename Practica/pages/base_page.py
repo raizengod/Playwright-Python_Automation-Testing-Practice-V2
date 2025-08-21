@@ -648,7 +648,7 @@ class Funciones_Globales:
         # Esto permite una interacción consistente con Playwright.
         if isinstance(selector, str):
             locator = self.page.locator(selector)
-        elif isinstance(selector, Page.locator): # Asegura que sea un objeto Locator válido
+        elif isinstance(selector, Locator): # Asegura que sea un objeto Locator válido
             locator = selector
         else:
             error_msg = f"\n❌ ERROR: El selector proporcionado '{type(selector)}' no es una cadena ni un objeto Locator válido."
@@ -1706,27 +1706,28 @@ class Funciones_Globales:
         Esta función espera hasta que el campo de texto contenga el valor deseado dentro
         de un tiempo límite, y registra el tiempo que tarda esta verificación como una
         métrica de rendimiento. Toma capturas de pantalla tanto en caso de éxito como de fallo.
-
+        
         Args:
             selector (Union[str, Page.locator]): El **selector del campo de texto** a verificar.
-                                                  Puede ser una cadena (CSS, XPath, etc.)
-                                                  o un objeto `Locator` de Playwright preexistente.
+                                                Puede ser una cadena (CSS, XPath, etc.)
+                                                o un objeto `Locator` de Playwright preexistente.
             valor_esperado (str): El **valor de texto exacto** que se espera encontrar en el campo.
             nombre_base (str): Nombre base utilizado para las **capturas de pantalla**
-                               tomadas durante la ejecución de la función.
+                            tomadas durante la ejecución de la función.
             directorio (str): **Ruta del directorio** donde se guardarán las capturas de pantalla.
             tiempo (Union[int, float]): **Tiempo máximo de espera** (en segundos) para que el
                                         campo contenga el `valor_esperado`. Si no lo contiene
-                                        dentro de este plazo, la función devolverá `False`.
+                                        dentro de este plazo, la función fallará.
                                         Por defecto, `5.0` segundos (se ajustó de 0.5 para robustez).
 
         Returns:
             bool: `True` si el valor del campo coincide con `valor_esperado` dentro del tiempo especificado;
-                  `False` en caso contrario (timeout o aserción fallida).
+                `False` en caso de que ocurra un error específico del selector.
 
         Raises:
-            Error: Si ocurre un problema específico de Playwright que impida la verificación
-                   (ej., selector inválido, elemento no es un campo de texto).
+            TimeoutError: Si el campo no contiene el valor esperado dentro del tiempo límite.
+            AssertionError: Si la aserción falla por cualquier otra razón.
+            Error: Si ocurre un problema específico de Playwright (ej., selector inválido, elemento no es un campo de texto).
             Exception: Para cualquier otro error inesperado.
         """
         self.logger.info(f"\nVerificando que el campo '{selector}' contiene el valor esperado: '{valor_esperado}'. Tiempo máximo de espera: {tiempo}s.")
@@ -1738,100 +1739,64 @@ class Funciones_Globales:
             locator = selector
 
         # --- Medición de rendimiento: Inicio de la verificación del valor del campo ---
-        # Registra el tiempo justo antes de iniciar la aserción del valor.
         start_time_value_check = time.time()
 
         try:
-            # Resalta visualmente el elemento en el navegador. Útil para depuración.
             locator.highlight()
-            # Toma una captura de pantalla del estado del campo *antes* de la verificación.
-            # Esto puede ser útil para ver el valor inicial si es diferente al esperado.
             self.tomar_captura(f"{nombre_base}_antes_verificar_valor_campo", directorio)
-
+            
             # Playwright espera a que el campo contenga el valor especificado.
             # El `timeout` se especifica en milisegundos.
             expect(locator).to_have_value(valor_esperado)
             
             # --- Medición de rendimiento: Fin de la verificación ---
-            # Registra el tiempo una vez que la aserción del valor ha sido exitosa.
             end_time_value_check = time.time()
-            # Calcula la duración total de la verificación del valor.
-            # Esta métrica es importante para evaluar la **velocidad con la que los campos
-            # de texto se pueblan o actualizan** en la UI, lo cual puede depender de la carga
-            # de datos o de la lógica de la aplicación.
             duration_value_check = end_time_value_check - start_time_value_check
             self.logger.info(f"PERFORMANCE: Tiempo que tardó en verificar que el campo '{selector}' contiene el valor '{valor_esperado}': {duration_value_check:.4f} segundos.")
 
             self.logger.info(f"\n✔ ÉXITO: El campo '{selector}' contiene el valor esperado: '{valor_esperado}'.")
-            # Toma una captura de pantalla al verificar que el campo tiene el valor esperado.
             self.tomar_captura(f"{nombre_base}_despues_verificar_valor_campo", directorio)
             return True
 
-        except TimeoutError as e:
-            # Captura específica para cuando el campo no contiene el valor esperado dentro del tiempo.
-            # Se intenta obtener el valor actual del campo para incluirlo en el mensaje de error.
-            actual_value = "No se pudo obtener el valor"
-            try:
-                actual_value = locator.input_value() # Intenta obtener el valor actual
-            except Exception:
-                pass # Ignora si no se puede obtener el valor (ej., elemento no existe o no es input)
-
-            end_time_fail = time.time()
-            duration_fail = end_time_fail - start_time_value_check # Mide desde el inicio de la operación.
-            error_msg = (
-                f"\n❌ FALLO (Timeout): El campo '{selector}' no contiene el valor esperado '{valor_esperado}' "
-                f"después de {duration_fail:.4f} segundos (timeout configurado: {tiempo}s). "
-                f"Valor actual: '{actual_value}'. Detalles: {e}"
-            )
-            self.logger.warning(error_msg) # Usa 'warning' ya que la función devuelve False.
-            # Toma una captura de pantalla en el momento del fallo por timeout.
-            self.tomar_captura(f"{nombre_base}_fallo_timeout_verificar_valor_campo", directorio)
-            return False
-
-        except AssertionError as e:
-            # Captura si la aserción de valor falla por alguna otra razón, aunque TimeoutError es más común.
+        except (TimeoutError, AssertionError) as e:
+            # Captura tanto TimeoutError como AssertionError, ya que ambas indican un fallo de aserción.
             actual_value = "No se pudo obtener el valor"
             try:
                 actual_value = locator.input_value()
             except Exception:
                 pass
-
+            
+            end_time_fail = time.time()
+            duration_fail = end_time_fail - start_time_value_check
             error_msg = (
                 f"\n❌ FALLO (Aserción): El campo '{selector}' NO contiene el valor esperado '{valor_esperado}'. "
                 f"Valor actual: '{actual_value}'. Detalles: {e}"
             )
-            self.logger.warning(error_msg) # Usa 'warning' aquí también.
-            # Toma una captura de pantalla en el momento del fallo de aserción.
+            self.logger.warning(error_msg)
             self.tomar_captura(f"{nombre_base}_fallo_verificar_valor_campo", directorio)
-            return False
+            raise # Re-lanza la excepción para que Pytest la detecte.
 
         except Error as e:
-            # Captura errores específicos de Playwright (ej., selector inválido, elemento no es un campo de entrada).
+            # Captura errores específicos de Playwright
             error_msg = (
                 f"\n❌ FALLO (Playwright): Error de Playwright al verificar el valor del campo '{selector}'. "
-                f"Esto indica un problema fundamental con el selector o el tipo de elemento. "
-                f"Detalles: {e}"
+                f"Esto indica un problema con el selector. Detalles: {e}"
             )
-            self.logger.error(error_msg, exc_info=True) # Registra el error con la traza completa.
-            # Toma una captura de pantalla para el error específico de Playwright.
+            self.logger.error(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_playwright_verificar_valor_campo", directorio)
-            raise # Re-lanza la excepción porque esto es un fallo de ejecución, no una verificación de estado.
+            raise # Re-lanza la excepción.
 
         except Exception as e:
-            # Captura cualquier otra excepción inesperada que pueda ocurrir.
+            # Captura cualquier otra excepción inesperada.
             error_msg = (
                 f"\n❌ FALLO (Inesperado): Ocurrió un error desconocido al verificar el valor del campo '{selector}'. "
                 f"Detalles: {e}"
             )
-            self.logger.critical(error_msg, exc_info=True) # Usa nivel crítico para errores graves.
-            # Toma una captura de pantalla para errores completamente inesperados.
+            self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_inesperado_verificar_valor_campo", directorio)
             raise # Re-lanza la excepción.
 
         finally:
-            # El bloque `finally` se ejecuta siempre.
-            # Aplica una espera fija después de la operación. Puede ser útil para observar
-            # el estado del elemento o esperar efectos secundarios en la UI.
             if tiempo > 0:
                 self.esperar_fijo(tiempo)
 
