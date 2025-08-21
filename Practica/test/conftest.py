@@ -35,8 +35,9 @@ def generar_ids_browser(param):
             {"browser": "firefox", "resolution": {"width": 1920, "height": 1080}, "device": None},
             {"browser": "webkit", "resolution": {"width": 1920, "height": 1080}, "device": None},
             # Emulación de dispositivos móviles
-            {"browser": "chromium", "device": "iPhone 12", "resolution": None},
-            {"browser": "webkit", "device": "Pixel 5", "resolution": None}
+            #{"browser": "chromium", "device": "iPhone 12", "resolution": None},
+            {"browser": "webkit", "device": "Pixel 5", "resolution": None},
+            {"browser": "webkit", "device": "iPhone 12", "resolution": None}
     ],
     ids=generar_ids_browser # <--- Usar la función para generar IDs
 )
@@ -57,11 +58,11 @@ def playwright_page(playwright: Playwright, request) -> Generator[Page, None, No
 
     try:
         if browser_type == "chromium":
-            browser_instance = playwright.chromium.launch(headless=True, slow_mo=500)
+            browser_instance = playwright.chromium.launch(headless=False, slow_mo=500)
         elif browser_type == "firefox":
-            browser_instance = playwright.firefox.launch(headless=True, slow_mo=500)
+            browser_instance = playwright.firefox.launch(headless=False, slow_mo=500)
         elif browser_type == "webkit":
-            browser_instance = playwright.webkit.launch(headless=True, slow_mo=500)
+            browser_instance = playwright.webkit.launch(headless=False, slow_mo=500)
         else:
             raise ValueError(f"\nEl tipo de navegador '{browser_type}' no es compatible.")
 
@@ -184,5 +185,28 @@ def set_up_byLabel(playwright_page: Page) -> Generator[Page, None, None]:
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
     fg.scroll_pagina(0, 1200)
+    
+    yield playwright_page
+    
+@pytest.fixture(scope="function")
+def set_up_byPlaceholder(playwright_page: Page) -> Generator[Page, None, None]:
+    """
+    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    """
+    # Espera a que el DOM de la página se cargue antes de continuar
+    playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
+    playwright_page.set_default_timeout(10000)
+    
+    fg = Funciones_Globales(playwright_page)
+    ml = MenuLocatorsPage(playwright_page)
+    
+    fg.validar_url_actual("https://testautomationpractice.blogspot.com")
+    fg.esperar_fijo(1)
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    
+    fg.validar_url_actual(".*/p/playwrightpractice.html")
+    fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
+    
+    fg.scroll_pagina(0, 1800)
     
     yield playwright_page
