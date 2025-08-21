@@ -2252,7 +2252,7 @@ class Funciones_Globales:
                 self.esperar_fijo(tiempo)
                 
     # 24- Función para verificar que una imagen se cargue exitosamente (sin enlaces rotos) con pruebas de rendimiento.
-    def verificar_carga_exitosa_imagen(self, selector: Union[str, Page.locator], nombre_base: str, directorio: str, tiempo_espera_red: Union[int, float] = 10.0, tiempo: Union[int, float] = 0.5) -> bool:
+    def verificar_carga_exitosa_imagen(self, selector: Union[str, Locator], nombre_base: str, directorio: str, tiempo_espera_red: Union[int, float] = 10.0, tiempo: Union[int, float] = 0.5) -> bool:
         """
         Verifica que una **imagen especificada por su selector** se cargue exitosamente,
         lo que implica que sea visible en el DOM y que su recurso se descargue con un
@@ -2260,87 +2260,75 @@ class Funciones_Globales:
         registrar el tiempo total de esta verificación.
 
         Args:
-            selector (Union[str, Page.locator]): El **selector de la imagen** (e.g., 'img#logo', 'img[alt="banner"]').
-                                                  Puede ser una cadena o un objeto `Locator` de Playwright.
+            selector (Union[str, Locator]): El **selector de la imagen** (e.g., 'img#logo', 'img[alt="banner"]').
+                                            Puede ser una cadena o un objeto `Locator` de Playwright.
             nombre_base (str): Nombre base para las **capturas de pantalla** tomadas.
             directorio (str): Directorio donde se guardarán las capturas de pantalla.
             tiempo_espera_red (Union[int, float]): **Tiempo máximo de espera** (en segundos) para
-                                                  que la imagen sea visible y para que su respuesta
-                                                  de red se complete. Por defecto, `10.0` segundos.
-                                                  Este es el principal timeout de rendimiento.
+                                                que la imagen sea visible y para que su respuesta
+                                                de red se complete. Por defecto, `10.0` segundos.
             tiempo (Union[int, float]): **Tiempo de espera fijo** (en segundos) al final de la
-                                        operación, útil para observar cambios. Por defecto, `1.0` segundo.
+                                        operación, útil para observar cambios. Por defecto, `0.5` segundos.
 
         Returns:
-            bool: `True` si la imagen se carga exitosamente (visible y respuesta 2xx);
-                  `False` en caso contrario (timeout, src vacío, o estado HTTP de error).
+            bool: `True` si la imagen se carga exitosamente (visible y respuesta 2xx).
 
         Raises:
-            Error: Si ocurre un problema específico de Playwright durante la interacción con el elemento
-                   (ej., selector inválido, no es un elemento de imagen válido).
+            TimeoutError: Si la imagen no es visible o su respuesta de red no llega a tiempo.
+            Error: Si ocurre un problema específico de Playwright (ej., selector inválido).
             Exception: Para cualquier otro error inesperado.
         """
-        image_url = None
         self.logger.info(f"\nIniciando verificación de carga exitosa para la imagen con selector: '{selector}'. Tiempo de espera de red: {tiempo_espera_red}s.")
 
-        # Asegura que 'selector' sea un objeto Locator de Playwright para un uso consistente.
         if isinstance(selector, str):
             locator = self.page.locator(selector)
         else:
             locator = selector
 
-        # --- Medición de rendimiento: Inicio de la verificación de carga de imagen ---
-        # Registra el tiempo justo antes de iniciar la cadena de verificaciones (visibilidad, src, respuesta de red).
         start_time_image_load_check = time.time()
+        
+        # Intenta obtener la URL de la imagen. La aserción de visibilidad es la forma más
+        # robusta de garantizar que el elemento existe y tiene un src.
+        try:
+            expect(locator).to_be_visible()
+            image_url = locator.get_attribute("src")
+        except Exception as e:
+            error_msg = f"\n❌ FALLO: La imagen con selector '{selector}' no es visible o no tiene un atributo 'src'. Detalles: {e}"
+            self.logger.error(error_msg)
+            self.tomar_captura(f"{nombre_base}_no_visible_o_src_missing", directorio)
+            raise ValueError(error_msg)
+
+        self.logger.info(f"\nLa imagen con selector '{selector}' es visible en el DOM y tiene la URL: {image_url}")
 
         try:
-            # 1. Resaltar el elemento (útil para depuración visual en el navegador)
             locator.highlight()
-            self.logger.debug(f"\nElemento con selector '{selector}' resaltado.")
-            self.tomar_captura(f"{nombre_base}_antes_verificar_carga_imagen", directorio) # Captura antes de iniciar la carga.
+            self.tomar_captura(f"{nombre_base}_antes_verificar_carga_imagen", directorio)
 
-            # 2. Esperar a que la imagen sea visible en el DOM
-            # Esto asegura que el elemento <img> está presente y renderizado.
-            self.logger.debug(f"\nEsperando visibilidad de la imagen con selector '{selector}' (timeout: {tiempo_espera_red}s).")
-            expect(locator).to_be_visible()
-            self.logger.info(f"\nLa imagen con selector '{selector}' es visible en el DOM.")
-
-            # 3. Obtener la URL de la imagen del atributo 'src'
-            # Playwright esperará implícitamente a que el atributo 'src' esté presente.
-            image_url = locator.get_attribute("src")
-            if not image_url:
-                error_msg = f"\n❌ FALLO: El atributo 'src' de la imagen con selector '{selector}' está vacío o no existe."
-                self.logger.error(error_msg)
-                self.tomar_captura(f"{nombre_base}_src_vacio", directorio)
-                return False
-
-            self.logger.info(f"\nURL de la imagen a verificar: {image_url}")
-
-            # 4. Monitorear la carga de la imagen en la red
-            # Usamos page.wait_for_response para esperar la respuesta HTTP de la imagen específica.
-            # Esto es más robusto que solo verificar la visibilidad, ya que asegura que el recurso
-            # fue descargado correctamente de la red. Filtramos por la URL y el tipo de recurso 'image'.
+            # Usamos page.wait_for_event para esperar la respuesta de red.
+            # Esto es compatible con la API síncrona de Playwright.
             self.logger.debug(f"\nEsperando respuesta de red para la imagen con URL: {image_url} (timeout: {tiempo_espera_red}s).")
-            response = self.page.wait_for_response(
+            
+            # El evento 'response' se dispara cuando una respuesta de red se completa.
+            response = self.page.wait_for_event(
+                "response",
                 lambda resp: resp.url == image_url and resp.request.resource_type == "image",
-                timeout=tiempo_espera_red * 1000 # Playwright espera milisegundos
+                timeout=tiempo_espera_red * 1000
             )
-
-            # 5. Verificar el código de estado de la respuesta HTTP
+            
+            # 4. Verificar el código de estado de la respuesta HTTP.
             if 200 <= response.status <= 299:
-                # --- Medición de rendimiento: Fin de la verificación (éxito) ---
+                # Medición de rendimiento y logging de éxito.
                 end_time_image_load_check = time.time()
                 duration_image_load_check = end_time_image_load_check - start_time_image_load_check
                 self.logger.info(f"PERFORMANCE: Tiempo total para verificar la carga exitosa de la imagen '{selector}' (URL: {image_url}): {duration_image_load_check:.4f} segundos.")
-
                 self.logger.info(f"\n✔ ÉXITO: La imagen con URL '{image_url}' cargó exitosamente con estado HTTP {response.status}.")
                 self.tomar_captura(f"{nombre_base}_carga_ok", directorio)
                 return True
             else:
-                # Si el estado HTTP no es un 2xx (indica un problema de carga)
-                self.logger.error(f"\n❌ FALLO: La imagen con URL '{image_url}' cargó con un estado de error: {response.status}.")
+                error_msg = f"\n❌ FALLO: La imagen con URL '{image_url}' cargó con un estado de error: {response.status}."
+                self.logger.error(error_msg)
                 self.tomar_captura(f"{nombre_base}_carga_fallida_status_{response.status}", directorio)
-                return False
+                raise ValueError(error_msg)
 
         except TimeoutError as e:
             # Captura si el elemento no aparece o la respuesta de red no llega a tiempo.
@@ -2354,7 +2342,7 @@ class Funciones_Globales:
             )
             self.logger.warning(error_msg, exc_info=True) # Usa 'warning' ya que la función devuelve False.
             self.tomar_captura(f"{nombre_base}_timeout_verificacion", directorio)
-            return False
+            raise TimeoutError(error_msg) # Eleva un error de timeout específico.
 
         except Error as e: # Captura errores específicos de Playwright (ej., selector inválido, no es un elemento de imagen)
             error_msg = (
@@ -2364,7 +2352,7 @@ class Funciones_Globales:
             )
             self.logger.error(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_playwright", directorio)
-            return False
+            raise
 
         except Exception as e: # Captura cualquier otro error inesperado
             error_msg = (
