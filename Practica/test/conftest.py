@@ -116,166 +116,228 @@ def playwright_page(playwright: Playwright, request) -> Generator[Page, None, No
 @pytest.fixture(scope="function")
 def set_up_ir_a(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que comienzan desde la página principal.
+
+    Navega a la URL base y configura el timeout por defecto para la página.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base definida en 'config.BASE_URL'
+    # 'wait_until="domcontentloaded"' espera a que el DOM se cargue completamente antes de continuar
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
+    
+    # Establece un timeout por defecto de 10 segundos (10000 ms) para las operaciones de Playwright
     playwright_page.set_default_timeout(10000)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_by_role(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que utilizan localizadores 'byRole'.
+    
+    Navega a la página de inicio, hace clic en el enlace 'PlaywrightPractice',
+    y valida la URL y el título antes de ceder el control a la prueba.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # 1. Valida que la URL actual sea la de la página de inicio
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
+    
+    fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
+    
+    # 2. Hace clic en el enlace que lleva a la página de práctica de Playwright
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
     
+    # 3. Valida que la nueva URL sea la de la página de práctica
     fg.validar_url_actual(".*/p/playwrightpractice.html")
+    
+    # 4. Valida que el título de la página sea el correcto
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byText(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byText'.
+    
+    Configura el entorno de la página de práctica de Playwright y se desplaza
+    hacia abajo para asegurar la visibilidad de los elementos 'byText'.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, hace clic en el enlace y valida la nueva URL y el título de la página
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 500 píxeles para exponer los elementos relevantes
     fg.scroll_pagina(0, 500)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byLabel(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byLabel'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de los elementos con etiquetas (labels) de formulario.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, hace clic en el enlace y valida la nueva URL y el título de la página
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 1200 píxeles
     fg.scroll_pagina(0, 1200)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byPlaceholder(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byPlaceholder'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de los campos de entrada con texto de marcador de posición.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
+    fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 1800 píxeles
     fg.scroll_pagina(0, 1800)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byAtlText(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byAltText'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de las imágenes con texto alternativo.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.esperar_fijo(1)
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 2100 píxeles
     fg.scroll_pagina(0, 2100)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byTitle(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byTitle'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de los elementos con texto de título.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.esperar_fijo(1)
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 2550 píxeles
     fg.scroll_pagina(0, 2550)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
-    
+
 @pytest.fixture(scope="function")
 def set_up_byTestId(playwright_page: Page) -> Generator[Page, None, None]:
     """
-    Fixture para pruebas que interactúan con la funcionalidad "Descargar archivo"
+    Fixture de configuración para pruebas que usan localizadores 'byTestId'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de los elementos con atributos 'data-testid'.
     """
-    # Espera a que el DOM de la página se cargue antes de continuar
+    # Navega a la URL base y configura el timeout por defecto
     playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
     playwright_page.set_default_timeout(10000)
     
+    # Inicializa las clases de funciones globales y localizadores del menú
     fg = Funciones_Globales(playwright_page)
     ml = MenuLocatorsPage(playwright_page)
     
+    # PRE-CONDICIONES:
+    # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.esperar_fijo(1)
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
-    
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
+    # 5. Se desplaza verticalmente 3000 píxeles
     fg.scroll_pagina(0, 3000)
     
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
