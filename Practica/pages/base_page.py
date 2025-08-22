@@ -5476,213 +5476,133 @@ class Funciones_Globales:
             # Este bloque se ejecuta siempre, independientemente del resultado.
             self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
         
-    # 43- Función para verificar una alerta de confirmación utilizando page.on("dialog") con page.once().
-    # Integra pruebas de rendimiento para medir la aparición y manejo de la confirmación a través de un listener.
-    def verificar_confirmacion_on_dialog(self, selector: Locator, mensaje_esperado: str, accion_confirmacion: str, nombre_base: str, directorio: str, tiempo_espera_elemento: Union[int, float] = 0.5, tiempo_max_deteccion_confirmacion: Union[int, float] = 0.7) -> bool:
+    # 43- Función para verificar una alerta de confirmación
+    def verificar_confirmacion_on_dialog(self, selector: Locator, mensaje_esperado: str, accion_confirmacion: str, nombre_base: str, directorio: str, tiempo_espera_elemento: Union[int, float] = 5.0, tiempo_max_deteccion_confirmacion: Union[int, float] = 7.0) -> bool:
         """
-        Verifica una confirmación de tipo 'confirm' que aparece después de hacer clic en un selector dado.
-        Utiliza `page.once("dialog")` para registrar un manejador de eventos que captura
-        la confirmación y realiza la acción solicitada (aceptar o cancelar).
-        Integra mediciones de rendimiento para cada fase de la operación.
+        Verifica una confirmación de tipo 'confirm' que aparece después de un clic,
+        manejando el diálogo de forma instantánea usando un event handler.
 
         Args:
-            selector (Locator): El **Locator de Playwright** del elemento (ej. botón)
-                                que, al ser clicado, dispara la confirmación.
-            mensaje_esperado (str): El **mensaje esperado** dentro del cuerpo de la confirmación.
-                                    Se verifica si este mensaje está contenido en el texto de la confirmación.
-            accion_confirmacion (str): La **acción a realizar** en la confirmación:
-                                       'accept' para aceptar el diálogo o 'dismiss' para cancelarlo.
-            nombre_base (str): Nombre base utilizado para las **capturas de pantalla**
-                               tomadas durante la ejecución de la función.
-            directorio (str): **Ruta del directorio** donde se guardarán las capturas de pantalla.
-            tiempo_espera_elemento (Union[int, float]): **Tiempo máximo de espera** (en segundos)
-                                                        para que el `selector` esté visible y habilitado
-                                                        antes de intentar hacer clic. Por defecto, `5.0` segundos.
-            tiempo_max_deteccion_confirmacion (Union[int, float]): **Tiempo máximo de espera** (en segundos)
-                                                                  después de hacer clic para que el listener
-                                                                  detecte y maneje la confirmación. Debe ser mayor que
-                                                                  el tiempo de procesamiento esperado de la confirmación.
-                                                                  Por defecto, `7.0` segundos.
+            selector (Locator): El Locator del elemento que dispara la confirmación.
+            mensaje_esperado (str): El mensaje esperado dentro de la confirmación.
+            accion_confirmacion (str): La acción a realizar: 'accept' o 'dismiss'.
+            nombre_base (str): Nombre base para las capturas de pantalla.
+            directorio (str): Ruta del directorio para las capturas.
+            tiempo_espera_elemento (Union[int, float]): Tiempo máximo de espera para que el selector esté listo.
+            tiempo_max_deteccion_confirmacion (Union[int, float]): Tiempo máximo de espera para que el diálogo aparezca.
 
         Returns:
-            bool: `True` si la confirmación apareció, es del tipo 'confirm', contiene el mensaje esperado
-                  y fue manejada correctamente; `False` en caso contrario o si ocurre un Timeout.
-
+            bool: True si la confirmación se manejó correctamente.
+        
         Raises:
-            AssertionError: Si el elemento disparador no está disponible, si la confirmación no aparece,
-                            si el tipo de diálogo es incorrecto, si el mensaje no coincide, si la acción
-                            de confirmación no es válida, o si ocurre un error inesperado de Playwright o genérico.
+            AssertionError: Si el elemento no está disponible, el tipo de diálogo es incorrecto o el mensaje no coincide.
         """
-        self.logger.info(f"\n--- Ejecutando verificación de confirmación con page.on('dialog'): {nombre_base} ---")
+        self.logger.info(f"\n--- Ejecutando verificación de confirmación (Manejo de Eventos Instantáneo): {nombre_base} ---")
         self.logger.info(f"\nVerificando confirmación al hacer clic en '{selector}' para '{accion_confirmacion}'")
         self.logger.info(f"\n  --> Mensaje de confirmación esperado: '{mensaje_esperado}'")
 
-        # Validar la acción de confirmación antes de iniciar la operación
         if accion_confirmacion not in ['accept', 'dismiss']:
             error_msg = f"\n❌ FALLO: Acción de confirmación no válida: '{accion_confirmacion}'. Use 'accept' o 'dismiss'."
             self.logger.error(error_msg)
             self.tomar_captura(f"{nombre_base}_accion_invalida", directorio)
             raise AssertionError(error_msg)
 
-        # Resetear el estado de las banderas para cada ejecución del test
-        # Esto es crucial para evitar que valores de una ejecución anterior afecten la actual.
-        self._dialogo_detectado = False
-        self._dialogo_mensaje_capturado = ""
-        self._dialogo_tipo_capturado = ""
-
-        # --- Medición de rendimiento: Inicio total de la función ---
         start_time_total_operation = time.time()
+        dialog_handler = None  # Definir antes para el ámbito del bloque finally
+
+        def on_dialog(dialog):
+            """Manejador de eventos que se ejecuta al instante de aparecer el diálogo."""
+            nonlocal dialog_handler  # Para acceder a la variable de ámbito superior
+            try:
+                self.logger.debug(f"\n  --> Diálogo detectado instantáneamente. Tipo: '{dialog.type}', Mensaje: '{dialog.message}'")
+                if dialog.type != "confirm":
+                    self.logger.error(f"\n⚠️ Tipo de diálogo inesperado: '{dialog.type}'. Se esperaba 'confirm'.")
+                    raise AssertionError(f"Tipo de diálogo inesperado: '{dialog.type}'. Se esperaba 'confirm'.")
+
+                if mensaje_esperado not in dialog.message:
+                    self.tomar_captura(f"{nombre_base}_confirmacion_mensaje_incorrecto", directorio)
+                    error_msg = (
+                        f"\n❌ FALLO: Mensaje de confirmación incorrecto.\n"
+                        f"  --> Esperado (contiene): '{mensaje_esperado}'\n"
+                        f"  --> Obtenido: '{dialog.message}'"
+                    )
+                    self.logger.error(error_msg)
+                    raise AssertionError(error_msg)
+
+                self.logger.debug(f"\n  --> Realizando la acción '{accion_confirmacion}' en el diálogo.")
+                if accion_confirmacion == 'accept':
+                    dialog.accept()
+                elif accion_confirmacion == 'dismiss':
+                    dialog.dismiss()
+                
+                self.logger.info(f"\n  ✅  --> Confirmación manejada (acción '{accion_confirmacion}').")
+
+            except Exception as e:
+                # Captura y registra errores dentro del manejador.
+                self.logger.critical(f"\n❌ FALLO: Error dentro del manejador de diálogo: {e}", exc_info=True)
+                raise e
+            finally:
+                # Asegúrate de limpiar el manejador para evitar futuras llamadas no deseadas.
+                if dialog_handler:
+                    self.page.off("dialog", dialog_handler)
 
         try:
-            # 1. Validar visibilidad y habilitación del selector que disparará la confirmación
+            self.logger.debug("\n--- INICIO del bloque TRY ---")
             self.logger.debug(f"\n  --> Validando visibilidad y habilitación del botón '{selector}' (timeout: {tiempo_espera_elemento}s)...")
-            # --- Medición de rendimiento: Inicio de visibilidad y habilitación del elemento ---
-            start_time_element_ready = time.time()
             expect(selector).to_be_visible()
             expect(selector).to_be_enabled()
             selector.highlight()
-            self.esperar_fijo(0.2) # Pequeña pausa visual antes del clic
-            # --- Medición de rendimiento: Fin de visibilidad y habilitación del elemento ---
-            end_time_element_ready = time.time()
-            duration_element_ready = end_time_element_ready - start_time_element_ready
-            self.logger.info(f"PERFORMANCE: Tiempo para que el elemento disparador esté listo: {duration_element_ready:.4f} segundos.")
-            
+            self.esperar_fijo(0.2)
             self.tomar_captura(f"{nombre_base}_elemento_listo_para_confirmacion", directorio)
 
-            # 2. Registrar el listener ANTES de la acción que dispara la confirmación
-            self.logger.debug("\n  --> Registrando listener para la confirmación con page.once('dialog')...")
-            # Usa page.once para que el listener se desregistre automáticamente después de detectar el primer diálogo.
-            # El handler `_get_confirmation_dialog_handler_for_on()` también acepta/cancela la confirmación internamente.
-            self.page.once("dialog", self._get_confirmation_dialog_handler_for_on(accion_confirmacion))
-
-            # 3. Hacer clic en el botón que dispara la confirmación
-            self.logger.debug(f"\n  --> Haciendo clic en el botón '{selector}'...")
-            # --- Medición de rendimiento: Inicio de click y espera de detección de confirmación ---
-            start_time_click_and_confirm_detection = time.time()
+            self.logger.debug("\n  --> Estableciendo el manejador de eventos 'on_dialog' con page.once()...")
+            self.page.once("dialog", on_dialog)
+            
+            self.logger.debug("\n  --> Haciendo clic en el botón para disparar el diálogo...")
             selector.click()
 
-            # 4. Esperar a que el listener haya detectado y manejado la confirmación
-            self.logger.debug(f"\n  --> Esperando a que la confirmación sea detectada y manejada por el listener (timeout: {tiempo_max_deteccion_confirmacion}s)...")
-            # Bucle de espera activa hasta que la bandera _dialogo_detectado sea True
-            # Se añade un timeout para el bucle, calculado a partir de tiempo_max_deteccion_confirmacion
-            wait_end_time = time.time() + tiempo_max_deteccion_confirmacion
-            while not self._dialogo_detectado and time.time() < wait_end_time:
-                time.sleep(0.1) # Pausa breve para evitar consumo excesivo de CPU
+            # Usamos page.wait_for_timeout para esperar un tiempo prudencial a que el evento sea manejado.
+            # No se recomienda, pero es una alternativa a wait_for_event cuando la acción
+            # ya se realiza en el manejador.
+            self.logger.debug(f"\n  --> Esperando {tiempo_max_deteccion_confirmacion}s para que el diálogo sea procesado.")
+            self.page.wait_for_timeout(tiempo_max_deteccion_confirmacion * 1000)
 
-            # --- Medición de rendimiento: Fin de click y espera de detección de confirmación ---
-            end_time_click_and_confirm_detection = time.time()
-            duration_click_and_confirm_detection = end_time_click_and_confirm_detection - start_time_click_and_confirm_detection
-            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección de la confirmación por el listener: {duration_click_and_confirm_detection:.4f} segundos.")
-
-            if not self._dialogo_detectado:
-                error_msg = f"\n❌ FALLO: La confirmación no fue detectada por el listener después de {tiempo_max_deteccion_confirmacion} segundos."
-                self.logger.error(error_msg)
-                self.tomar_captura(f"{nombre_base}_confirmacion_NO_detectada_timeout", directorio)
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
-                raise AssertionError(error_msg)
-            
-            self.tomar_captura(f"{nombre_base}_confirmacion_detectada_por_listener", directorio)
-            self.logger.info(f"\n  ✅  Confirmación detectada con éxito por el listener.")
-
-            # 5. Validaciones después de que el listener ha actuado
-            # --- Medición de rendimiento: Inicio de verificación de contenido de confirmación ---
-            start_time_dialog_content_verification = time.time()
-            if self._dialogo_tipo_capturado != "confirm":
-                self.logger.error(f"\n⚠️ Tipo de diálogo inesperado: '{self._dialogo_tipo_capturado}'. Se esperaba 'confirm'.")
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
-                raise AssertionError(f"\nTipo de diálogo inesperado: '{self._dialogo_tipo_capturado}'. Se esperaba 'confirm'.")
-
-            if mensaje_esperado not in self._dialogo_mensaje_capturado:
-                self.tomar_captura(f"{nombre_base}_confirmacion_mensaje_incorrecto", directorio)
-                error_msg = (
-                    f"\n❌ FALLO: Mensaje de confirmación incorrecto.\n"
-                    f"  --> Esperado (contiene): '{mensaje_esperado}'\n"
-                    f"  --> Obtenido: '{self._dialogo_mensaje_capturado}'"
-                )
-                self.logger.error(error_msg)
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
-                raise AssertionError(error_msg)
-            
-            # --- Medición de rendimiento: Fin de verificación de contenido de confirmación ---
-            end_time_dialog_content_verification = time.time()
-            duration_dialog_content_verification = end_time_dialog_content_verification - start_time_dialog_content_verification
-            self.logger.info(f"PERFORMANCE: Tiempo de verificación de tipo y mensaje de la confirmación: {duration_dialog_content_verification:.4f} segundos.")
-
-            # La confirmación ya fue aceptada/cancelada por el handler `_get_confirmation_dialog_handler_for_on()`.
-            self.logger.info(f"\n  ✅  --> Confirmación manejada (acción '{accion_confirmacion}' por el listener).")
-
-            # 6. Opcional: Verificar el resultado en la página después de la interacción
-            # Es crucial para confirmar que la acción en el diálogo tuvo el efecto esperado en la UI.
-            # --- Medición de rendimiento: Inicio de verificación del resultado en la página ---
-            start_time_post_action_verification = time.time()
+            # 5. Verificar el resultado en la página después de la interacción
+            self.logger.debug("\n  --> Verificando el resultado en la página.")
             if accion_confirmacion == 'accept':
-                # Asumo un selector '#demo' y texto "You pressed OK!", ajusta esto a tu aplicación real
                 expect(self.page.locator("#demo")).to_have_text("You pressed OK!")
                 self.logger.info("\n  ✅  --> Resultado en página: 'You pressed OK!' verificado.")
             elif accion_confirmacion == 'dismiss':
-                # Asumo un selector '#demo' y texto "You pressed Cancel!", ajusta esto a tu aplicación real
                 expect(self.page.locator("#demo")).to_have_text("You pressed Cancel!")
                 self.logger.info("\n  ✅  --> Resultado en página: 'You pressed Cancel!' verificado.")
             
-            # --- Medición de rendimiento: Fin de verificación del resultado en la página ---
-            end_time_post_action_verification = time.time()
-            duration_post_action_verification = end_time_post_action_verification - start_time_post_action_verification
-            self.logger.info(f"PERFORMANCE: Tiempo de verificación del resultado en la página: {duration_post_action_verification:.4f} segundos.")
-
             self.tomar_captura(f"{nombre_base}_confirmacion_exitosa_{accion_confirmacion}", directorio)
-            self.logger.info(f"\n✅  --> ÉXITO: La confirmación se mostró, mensaje verificado y '{accion_confirmacion}' correctamente.")
+            self.logger.info(f"\n✅  --> ÉXITO: La confirmación se mostró y se manejó correctamente.")
             
-            # --- Medición de rendimiento: Fin total de la función ---
             end_time_total_operation = time.time()
             duration_total_operation = end_time_total_operation - start_time_total_operation
-            self.logger.info(f"PERFORMANCE: Tiempo total de la operación (verificación de confirmación por listener): {duration_total_operation:.4f} segundos.")
-
+            self.logger.info(f"PERFORMANCE: Tiempo total de la operación: {duration_total_operation:.4f} segundos.")
+            
             return True
 
-        except TimeoutError as e:
-            # Captura si el selector no está listo, si la confirmación no aparece a tiempo, o si la verificación post-acción falla.
+        except Exception as e:
+            self.logger.debug("\n--- INICIO del bloque EXCEPT ---")
+            if dialog_handler:
+                self.page.off("dialog", dialog_handler)
             end_time_fail = time.time()
             duration_fail = end_time_fail - start_time_total_operation
             error_msg = (
-                f"\n❌ FALLO (Tiempo de espera excedido): El elemento '{selector}' no estuvo listo, "
-                f"la confirmación no fue detectada por el listener después de {tiempo_max_deteccion_confirmacion} segundos, "
-                f"o la verificación del resultado en la página falló.\n"
+                f"\n❌ FALLO: Ocurrió un error al verificar la confirmación.\n"
                 f"La operación duró {duration_fail:.4f} segundos antes del fallo.\n"
-                f"Detalles: {e}"
-            )
-            self.logger.error(error_msg, exc_info=True)
-            self.tomar_captura(f"{nombre_base}_confirmacion_NO_detectada_timeout", directorio)
-            raise AssertionError(f"\nTimeout al verificar confirmación para selector '{selector}'") from e
-
-        except Error as e:
-            # Captura errores específicos de Playwright (ej. click fallido, problemas con el diálogo).
-            error_msg = (
-                f"\n❌ FALLO (Playwright): Error de Playwright al interactuar con el botón o la confirmación.\n"
-                f"Detalles: {e}"
-            )
-            self.logger.critical(error_msg, exc_info=True)
-            self.tomar_captura(f"{nombre_base}_error_playwright", directorio)
-            raise AssertionError(f"\nError de Playwright al verificar confirmación para selector '{selector}'") from e
-
-        except AssertionError as e:
-            # Captura las AssertionError lanzadas internamente por la función (acción inválida, tipo de diálogo, mensaje incorrecto).
-            self.logger.critical(f"\n❌ FALLO (Validación de Confirmación): {e}", exc_info=True)
-            # La captura ya se tomó en la lógica interna donde se lanzó el AssertionError
-            raise # Re-lanzar la excepción original para que el framework la maneje
-
-        except Exception as e:
-            # Captura cualquier otra excepción inesperada.
-            error_msg = (
-                f"\n❌ FALLO (Inesperado): Ocurrió un error inesperado al verificar la confirmación.\n"
                 f"Detalles: {e}"
             )
             self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_inesperado", directorio)
-            raise AssertionError(f"\nError inesperado al verificar confirmación para selector '{selector}'") from e
-
+            raise AssertionError(f"Error inesperado al verificar confirmación para selector '{selector}'") from e
+        
         finally:
-            # Este bloque se ejecuta siempre, independientemente del resultado.
-            self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
+            self.logger.debug("\n--- Bloque FINALLY: Espera fija de 0.2s y cierre de la operación. ---")
+            self.esperar_fijo(0.2)
     
     # 44- Función para verificar_prompt_expect_event (Implementación para Prompt Alert con expect_event).
     # Integra pruebas de rendimiento para medir la aparición, interacción y manejo de un diálogo prompt.
@@ -5909,53 +5829,45 @@ class Funciones_Globales:
         finally:
             # Este bloque se ejecuta siempre, independientemente del resultado.
             self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
-        
+
     # 45- Función para verificar una alerta de tipo 'prompt' utilizando page.on("dialog") con page.once().
-    # Integra pruebas de rendimiento para medir la aparición, interacción y manejo de un diálogo prompt.
-    def verificar_prompt_on_dialog(self, selector: Locator, mensaje_prompt_esperado: str, input_text: Optional[str], accion_prompt: str, nombre_base: str, directorio: str, tiempo_espera_elemento: Union[int, float] = 0.5, tiempo_max_deteccion_prompt: Union[int, float] = 0.7) -> bool:
+    # Este método registra un oyente de eventos para manejar el diálogo antes de hacer clic.
+    def verificar_prompt_on_dialog(self, selector: Locator, mensaje_prompt_esperado: str, input_text: Optional[str], accion_prompt: str, nombre_base: str, directorio: str, tiempo_espera_elemento: Union[int, float] = 5.0, tiempo_max_deteccion_prompt: Union[int, float] = 7.0) -> bool:
         """
-        Verifica un cuadro de diálogo 'prompt' que aparece después de hacer clic en un selector dado.
-        Utiliza `page.once("dialog")` para registrar un manejador de eventos que captura el prompt,
-        introduce el texto si es necesario y realiza la acción solicitada (aceptar o cancelar).
-        Integra mediciones de rendimiento para cada fase de la operación.
+        Verifica un cuadro de diálogo 'prompt' que aparece después de hacer clic en un selector.
+        Utiliza `page.once("dialog", ...)` para esperar de forma asíncrona a que el diálogo aparezca.
 
         Args:
-            selector (Locator): El **Locator de Playwright** del elemento (ej. botón)
-                                que, al ser clicado, dispara el diálogo prompt.
+            selector (Locator): El **Locator de Playwright** del elemento que dispara el prompt.
             mensaje_prompt_esperado (str): El **mensaje esperado** dentro del cuerpo del prompt.
-                                           Se verifica si este mensaje está contenido en el texto del prompt.
             input_text (Optional[str]): El **texto a introducir** en el prompt si `accion_prompt` es 'accept'.
                                         Debe ser `None` si `accion_prompt` es 'dismiss'.
-            accion_prompt (str): La **acción a realizar** en el prompt:
-                                 'accept' para introducir texto y aceptar, o 'dismiss' para cancelar.
-            nombre_base (str): Nombre base utilizado para las **capturas de pantalla**
-                               tomadas durante la ejecución de la función.
-            directorio (str): **Ruta del directorio** donde se guardarán las capturas de pantalla.
-            tiempo_espera_elemento (Union[int, float]): **Tiempo máximo de espera** (en segundos)
-                                                        para que el `selector` esté visible y habilitado
-                                                        antes de intentar hacer clic. Por defecto, `5.0` segundos.
-            tiempo_max_deteccion_prompt (Union[int, float]): **Tiempo máximo de espera** (en segundos)
-                                                               para que el listener detecte y maneje el prompt
-                                                               después de hacer clic en el selector.
-                                                               Por defecto, `7.0` segundos.
+            accion_prompt (str): La **acción a realizar**: 'accept' o 'dismiss'.
+            nombre_base (str): Nombre base para las capturas de pantalla.
+            directorio (str): Ruta del directorio para las capturas.
+            tiempo_espera_elemento (Union[int, float]): Tiempo máximo para que el selector esté listo.
+            tiempo_max_deteccion_prompt (Union[int, float]): Tiempo máximo para que el diálogo aparezca.
 
         Returns:
-            bool: `True` si el prompt apareció, es del tipo 'prompt', contiene el mensaje esperado
-                  y fue manejado correctamente; `False` en caso contrario o si ocurre un Timeout.
+            bool: `True` si el prompt fue manejado correctamente.
 
         Raises:
-            AssertionError: Si el elemento disparador no está disponible, si el prompt no aparece,
-                            si el tipo de diálogo es incorrecto, si el mensaje no coincide,
-                            si la acción del prompt no es válida, si `input_text` es incorrecto
-                            para la acción, o si ocurre un error inesperado de Playwright o genérico.
+            AssertionError: Si el elemento no está disponible, el prompt no aparece, el tipo de diálogo es
+                            incorrecto, el mensaje no coincide, o el texto de entrada es incorrecto.
         """
-        self.logger.info(f"\n--- Ejecutando verificación de prompt con page.on('dialog'): {nombre_base} ---")
+        self.logger.info(f"\n--- Ejecutando verificación de prompt con page.once('dialog'): {nombre_base} ---")
         self.logger.info(f"\nVerificando prompt al hacer clic en '{selector}' para '{accion_prompt}'")
         self.logger.info(f"\n  --> Mensaje del prompt esperado: '{mensaje_prompt_esperado}'")
         if accion_prompt == 'accept':
             self.logger.info(f"\n  --> Texto a introducir: '{input_text}'")
 
-        # Validar la acción y el input_text antes de iniciar la operación
+        # Resetear el estado para cada ejecución del test
+        self._alerta_detectada = False
+        self._alerta_mensaje_capturado = ""
+        self._alerta_tipo_capturado = ""
+        self._alerta_input_capturado = ""
+
+        # Validar la acción y el input_text antes de la operación
         if accion_prompt not in ['accept', 'dismiss']:
             error_msg = f"\n❌ FALLO: Acción de prompt no válida: '{accion_prompt}'. Use 'accept' o 'dismiss'."
             self.logger.error(error_msg)
@@ -5969,277 +5881,193 @@ class Funciones_Globales:
         if accion_prompt == 'dismiss' and input_text is not None:
             self.logger.warning("\n⚠️ ADVERTENCIA: 'input_text' se ignora cuando 'accion_prompt' es 'dismiss'.")
 
-        # Resetear el estado de las banderas para cada ejecución del test.
-        # Esto es crucial para evitar que valores de una ejecución anterior afecten la actual.
-        self._dialogo_detectado = False
-        self._dialogo_mensaje_capturado = ""
-        self._dialogo_tipo_capturado = ""
-        self._dialogo_input_capturado = "" # Resetear también el input capturado del handler
-
-        # --- Medición de rendimiento: Inicio total de la función ---
         start_time_total_operation = time.time()
 
         try:
-            # 1. Validar visibilidad y habilitación del selector que disparará el prompt
+            self.logger.debug("\n--- INICIO del bloque TRY ---")
+            
+            # 1. Validar visibilidad y habilitación del selector
             self.logger.debug(f"\n  --> Validando visibilidad y habilitación del botón '{selector}' (timeout: {tiempo_espera_elemento}s)...")
-            # --- Medición de rendimiento: Inicio de visibilidad y habilitación del elemento ---
             start_time_element_ready = time.time()
             expect(selector).to_be_visible()
             expect(selector).to_be_enabled()
             selector.highlight()
-            self.esperar_fijo(0.2) # Pequeña pausa visual antes del clic
-            # --- Medición de rendimiento: Fin de visibilidad y habilitación del elemento ---
+            self.logger.debug("\n  --> Elemento resaltado.")
+            self.esperar_fijo(0.2)
             end_time_element_ready = time.time()
             duration_element_ready = end_time_element_ready - start_time_element_ready
             self.logger.info(f"PERFORMANCE: Tiempo para que el elemento disparador esté listo: {duration_element_ready:.4f} segundos.")
-            
             self.tomar_captura(f"{nombre_base}_elemento_listo_para_prompt", directorio)
 
-            # 2. Registrar el listener ANTES de la acción que dispara el prompt
-            self.logger.debug("\n  --> Registrando listener para el prompt con page.once('dialog')...")
-            # Usa page.once para que el listener se desregistre automáticamente después de detectar el primer diálogo.
-            # El handler `_get_prompt_dialog_handler_for_on()` también acepta/cancela la confirmación internamente.
+            # 2. Establecer el oyente del evento y disparar la acción
+            self.logger.debug(f"\n  --> Preparando la espera del evento 'dialog' y haciendo clic en '{selector}'...")
+            start_time_click_and_prompt_detection = time.time()
+
+            # El orden es crucial: registrar el oyente antes de hacer clic
+            # CORRECCIÓN AQUÍ: Se llama al método _get_prompt_dialog_handler_for_on
             self.page.once("dialog", self._get_prompt_dialog_handler_for_on(input_text, accion_prompt))
 
-            # 3. Hacer clic en el botón que dispara el prompt
-            self.logger.debug(f"\n  --> Haciendo clic en el botón '{selector}'...")
-            # --- Medición de rendimiento: Inicio de click y espera de detección del prompt ---
-            start_time_click_and_prompt_detection = time.time()
-            selector.click()
+            # Hacer clic en el botón que dispara el prompt. Usamos `no_wait_after=True` para prevenir el deadlock.
+            self.logger.debug(f"\n  --> Oyente 'dialog' registrado. Haciendo clic en el botón ahora...")
+            selector.click(timeout=15000, no_wait_after=True)
 
-            # 4. Esperar a que el listener haya detectado y manejado el prompt
-            self.logger.debug(f"\n  --> Esperando a que el prompt sea detectado y manejado por el listener (timeout: {tiempo_max_deteccion_prompt}s)...")
-            # Bucle de espera activa hasta que la bandera _dialogo_detectado sea True
-            # Se añade un timeout para el bucle, calculado a partir de tiempo_max_deteccion_prompt
-            wait_end_time = time.time() + tiempo_max_deteccion_prompt
-            while not self._dialogo_detectado and time.time() < wait_end_time:
-                time.sleep(0.1) # Pausa breve para evitar consumo excesivo de CPU
+            # Esperar a que el listener haya detectado y manejado el prompt. 
+            # Se puede usar una espera fija si se sabe que el prompt aparece rápido,
+            # o un bucle de polling como en la versión original si es necesario.
+            self.logger.debug("\n  --> Esperando a que el prompt sea detectado y manejado por el oyente...")
+            self.page.wait_for_timeout(tiempo_max_deteccion_prompt * 1000)
 
-            # --- Medición de rendimiento: Fin de click y espera de detección del prompt ---
-            end_time_click_and_prompt_detection = time.time()
-            duration_click_and_prompt_detection = end_time_click_and_prompt_detection - start_time_click_and_prompt_detection
-            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección del prompt por el listener: {duration_click_and_prompt_detection:.4f} segundos.")
-
-            if not self._dialogo_detectado:
-                error_msg = f"\n❌ FALLO: El prompt no fue detectado por el listener después de {tiempo_max_deteccion_prompt} segundos."
+            # 3. Validaciones después de que el oyente ha actuado
+            if self._alerta_tipo_capturado != "prompt":
+                error_msg = f"\n⚠️ Tipo de diálogo inesperado: '{self._alerta_tipo_capturado}'. Se esperaba 'prompt'."
                 self.logger.error(error_msg)
-                self.tomar_captura(f"{nombre_base}_prompt_NO_detectada_timeout", directorio)
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
                 raise AssertionError(error_msg)
-            
-            self.tomar_captura(f"{nombre_base}_prompt_detectado_por_listener", directorio)
-            self.logger.info(f"\n  ✅  Prompt detectado con éxito por el listener.")
 
-            # 5. Validaciones después de que el listener ha actuado
-            # --- Medición de rendimiento: Inicio de verificación de contenido del prompt ---
-            start_time_dialog_content_verification = time.time()
-            if self._dialogo_tipo_capturado != "prompt":
-                self.logger.error(f"\n⚠️ Tipo de diálogo inesperado: '{self._dialogo_tipo_capturado}'. Se esperaba 'prompt'.")
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
-                raise AssertionError(f"\nTipo de diálogo inesperado: '{self._dialogo_tipo_capturado}'. Se esperaba 'prompt'.")
-
-            if mensaje_prompt_esperado not in self._dialogo_mensaje_capturado:
+            if mensaje_prompt_esperado not in self._alerta_mensaje_capturado:
                 self.tomar_captura(f"{nombre_base}_prompt_mensaje_incorrecto", directorio)
                 error_msg = (
                     f"\n❌ FALLO: Mensaje del prompt incorrecto.\n"
                     f"  --> Esperado (contiene): '{mensaje_prompt_esperado}'\n"
-                    f"  --> Obtenido: '{self._dialogo_mensaje_capturado}'"
+                    f"  --> Obtenido: '{self._alerta_mensaje_capturado}'"
                 )
                 self.logger.error(error_msg)
-                # Re-lanzar como AssertionError para un fallo claro de la prueba
                 raise AssertionError(error_msg)
             
-            # Verificar que el texto introducido (si es el caso) se ha guardado correctamente
-            if accion_prompt == 'accept' and self._dialogo_input_capturado != input_text:
+            # 4. Verificar que el texto introducido (si es el caso) se ha guardado correctamente
+            if accion_prompt == 'accept' and self._alerta_input_capturado != input_text:
                 self.tomar_captura(f"{nombre_base}_prompt_input_incorrecto", directorio)
                 error_msg = (
                     f"\n❌ FALLO: Texto introducido en el prompt incorrecto.\n"
                     f"  --> Esperado: '{input_text}'\n"
-                    f"  --> Obtenido (capturado): '{self._dialogo_input_capturado}'"
+                    f"  --> Obtenido (capturado): '{self._alerta_input_capturado}'"
                 )
                 self.logger.error(error_msg)
                 raise AssertionError(error_msg)
 
-            # --- Medición de rendimiento: Fin de verificación de contenido del prompt ---
-            end_time_dialog_content_verification = time.time()
-            duration_dialog_content_verification = end_time_dialog_content_verification - start_time_dialog_content_verification
-            self.logger.info(f"PERFORMANCE: Tiempo de verificación de tipo, mensaje y texto introducido del prompt: {duration_dialog_content_verification:.4f} segundos.")
-
-            # El prompt ya fue aceptado/cancelado por el handler `_get_prompt_dialog_handler_for_on()`.
-            self.logger.info(f"\n  ✅  --> Prompt manejado (acción '{accion_prompt}' por el listener).")
-
-            # Nota: La verificación del resultado en la página se considera una aserción separada
-            # que debe realizarse después de esta función para desacoplar responsabilidades.
-            # Sin embargo, a modo de ejemplo, se puede mantener aquí si la aplicación es simple.
-            # Aquí se eliminará para reflejar un mejor desacoplamiento de esta función.
-
             self.tomar_captura(f"{nombre_base}_prompt_exitosa_{accion_prompt}", directorio)
-            self.logger.info(f"\n✅  --> ÉXITO: El prompt se mostró, mensaje y texto verificado, y acción '{accion_prompt}' completada correctamente.")
+            self.logger.info(f"\n✅  --> ÉXITO: El prompt se mostró, mensaje verificado, y acción '{accion_prompt}' completada correctamente.")
             
-            # --- Medición de rendimiento: Fin total de la función ---
             end_time_total_operation = time.time()
             duration_total_operation = end_time_total_operation - start_time_total_operation
-            self.logger.info(f"PERFORMANCE: Tiempo total de la operación (verificación de prompt por listener): {duration_total_operation:.4f} segundos.")
-
+            self.logger.info(f"PERFORMANCE: Tiempo total de la operación: {duration_total_operation:.4f} segundos.")
+            
             return True
 
-        except TimeoutError as e:
-            # Captura si el selector no está listo, si el prompt no aparece a tiempo, o si la verificación post-acción falla.
+        except Exception as e:
+            self.logger.debug("\n--- INICIO del bloque EXCEPT ---")
             end_time_fail = time.time()
             duration_fail = end_time_fail - start_time_total_operation
             error_msg = (
-                f"\n❌ FALLO (Tiempo de espera excedido): El elemento '{selector}' no estuvo listo, "
-                f"el prompt no apareció/fue detectado por el listener después de {tiempo_max_deteccion_prompt} segundos.\n"
+                f"\n❌ FALLO: Ocurrió un error inesperado al verificar el prompt.\n"
                 f"La operación duró {duration_fail:.4f} segundos antes del fallo.\n"
-                f"Detalles: {e}"
-            )
-            self.logger.error(error_msg, exc_info=True)
-            self.tomar_captura(f"{nombre_base}_prompt_NO_detectada_timeout", directorio)
-            raise AssertionError(f"\nTimeout al verificar prompt para selector '{selector}'") from e
-
-        except Error as e:
-            # Captura errores específicos de Playwright (ej. click fallido, problemas con el diálogo).
-            error_msg = (
-                f"\n❌ FALLO (Playwright): Error de Playwright al interactuar con el botón o el prompt.\n"
-                f"Detalles: {e}"
-            )
-            self.logger.critical(error_msg, exc_info=True)
-            self.tomar_captura(f"{nombre_base}_error_playwright", directorio)
-            raise AssertionError(f"\nError de Playwright al verificar prompt para selector '{selector}'") from e
-
-        except AssertionError as e:
-            # Captura las AssertionError lanzadas internamente por la función (acción inválida, tipo de diálogo, mensaje incorrecto).
-            self.logger.critical(f"\n❌ FALLO (Validación de Prompt): {e}", exc_info=True)
-            # La captura ya se tomó en la lógica interna donde se lanzó el AssertionError
-            raise # Re-lanzar la excepción original para que el framework la maneje
-
-        except Exception as e:
-            # Captura cualquier otra excepción inesperada.
-            error_msg = (
-                f"\n❌ FALLO (Inesperado): Ocurrió un error inesperado al verificar el prompt.\n"
                 f"Detalles: {e}"
             )
             self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_inesperado", directorio)
-            raise AssertionError(f"\nError inesperado al verificar prompt para selector '{selector}'") from e
-
-        finally:
-            # Este bloque se ejecuta siempre, independientemente del resultado.
-            self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
+            raise AssertionError(f"Error inesperado al verificar prompt para selector '{selector}'") from e
         
-    # 46- Función para esperar por una nueva pestaña/página (popup) que se haya abierto
-    # y cambia el foco de la instancia 'page' actual a esa nueva pestaña.
-    # Integra mediciones de rendimiento para la apertura y carga de la nueva página.
-    def abrir_y_cambiar_a_nueva_pestana(self, selector_boton_apertura: Locator, nombre_base: str, directorio: str, tiempo_espera_max_total: Union[int, float] = 1.5) -> Optional[Page]:
+        finally:
+            self.logger.debug("\n--- Bloque FINALLY: Espera fija de 0.2s y cierre de la operación. ---")
+            self.esperar_fijo(0.2)
+            
+    # 46- Función que esperar por la apertura de una nueva pestaña/página (popup) después de hacer clic
+    # en un elemento dado, cambiar el foco a esa nueva pestaña, y medir el rendimiento.
+    def abrir_y_cambiar_a_nueva_pestana(self, selector_boton_apertura: Locator, nombre_base: str, directorio: str, tiempo_espera_max_total: Union[int, float] = 15.0, texto_esperado_en_boton: Optional[str] = None) -> Optional[Page]:
         """
-        Espera por la apertura de una nueva pestaña/página (popup) después de hacer clic
-        en un elemento dado, cambia el foco de la instancia 'page' actual a esa nueva pestaña,
-        y mide el rendimiento de este proceso.
+        Esperar por la apertura de una nueva pestaña/página (popup) después de hacer clic
+        en un elemento dado, cambiar el foco a esa nueva pestaña, y medir el rendimiento.
 
         Args:
             selector_boton_apertura (Locator): El **Locator de Playwright** del botón o elemento
-                                               que, al ser clicado, dispara la apertura de una nueva pestaña/ventana.
-            nombre_base (str): Nombre base utilizado para las **capturas de pantalla**
-                               tomadas durante la ejecución de la función.
+                                            que, al ser clicado, dispara la apertura de una nueva pestaña/ventana.
+            nombre_base (str): Nombre base para las capturas de pantalla.
             directorio (str): **Ruta del directorio** donde se guardarán las capturas de pantalla.
             tiempo_espera_max_total (Union[int, float]): **Tiempo máximo total de espera** (en segundos)
-                                                         para todo el proceso: desde el clic hasta que la nueva
-                                                         página esté completamente cargada y lista. Por defecto, `15.0` segundos.
-
+                                                        para el proceso completo. Por defecto, 15.0 segundos.
+            texto_esperado_en_boton (Optional[str]): El **texto esperado** en el botón.
         Returns:
-            Optional[Page]: El objeto `Page` de la nueva pestaña/ventana si se abrió y cargó correctamente.
-                            Retorna `None` si ocurre un `TimeoutError` o un fallo durante el proceso.
-
+            Optional[Page]: El objeto `Page` de la nueva pestaña/ventana.
         Raises:
-            AssertionError: Si el elemento disparador no está disponible, o si ocurre un error inesperado
-                            durante la interacción o la espera.
+            AssertionError: Si el elemento disparador no está disponible, o si el proceso falla.
         """
         self.logger.info(f"\n🔄 Preparando para hacer clic en '{selector_boton_apertura}' y esperar nueva pestaña/popup. Esperando hasta {tiempo_espera_max_total} segundos...")
 
-        nueva_pagina = None
-        # --- Medición de rendimiento: Inicio total de la función ---
+        # Reiniciar las banderas y variables de estado para esta operación
+        self._popup_detectado = False
+        self._popup_page = None
+
         start_time_total_operation = time.time()
 
         try:
-            # 1. Validar que el botón es visible y habilitado antes de hacer clic
-            self.logger.debug(f"\n  --> Validando visibilidad y habilitación del botón '{selector_boton_apertura}'...")
-            # Aquí puedes reutilizar un tiempo de espera más corto para la validación inicial del elemento si lo deseas,
-            # o usar el tiempo_espera_max_total. Para simplicidad, se usará el total aquí.
-            expect(selector_boton_apertura).to_be_visible()
-            expect(selector_boton_apertura).to_be_enabled()
-            selector_boton_apertura.highlight()
-            self.esperar_fijo(0.2) # Pequeña pausa visual
+            self.logger.debug("\n--- INICIO del bloque TRY ---")
 
-            # 2. Usar page.context.expect_event("page") para esperar la nueva página
-            # y realizar la acción de click DENTRO de este contexto.
-            # Esto asegura que la página capturada es la que se abre DESPUÉS del click.
-            self.logger.debug(f"\n  --> Configurando listener para nueva página y haciendo clic en '{selector_boton_apertura}'...")
-            # El timeout de expect_event cubre el tiempo desde el clic hasta que Playwright detecta la nueva página.
-            with self.page.context.expect_event("page") as event_info:
-                # --- Medición de rendimiento: Inicio de click y detección de nueva página ---
-                start_time_click_and_new_page_detection = time.time()
-                # Realizar el clic en el botón que abre la nueva pestaña
-                self.hacer_click_en_elemento(selector_boton_apertura, f"{nombre_base}_click_para_nueva_pestana", directorio, tiempo_espera_max_total)
+            # 1. Hacer clic en el botón que abre la nueva pestaña
+            self.logger.info(f"--> Haciendo clic en el botón '{selector_boton_apertura}' para disparar la apertura de la nueva página...")
+            self.hacer_click_en_elemento(
+                selector_boton_apertura, 
+                f"{nombre_base}_click_para_nueva_pestana", 
+                directorio, 
+                texto_esperado=texto_esperado_en_boton
+            )
+
+            # 2. Esperar que la nueva página sea detectada por el oyente del constructor
+            self.logger.info(f"--> Clic en el botón disparador completado. Esperando que el oyente permanente detecte la nueva página...")
             
-            # Obtener el objeto 'Page' de la nueva pestaña
-            nueva_pagina = event_info.value 
-            # --- Medición de rendimiento: Fin de click y detección de nueva página ---
-            end_time_click_and_new_page_detection = time.time()
-            duration_click_and_new_page_detection = end_time_click_and_new_page_detection - start_time_click_and_new_page_detection
-            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección de la nueva página: {duration_click_and_new_page_detection:.4f} segundos.")
+            start_time_new_page_detection = time.time()
             
-            # 3. Esperar a que la nueva página cargue completamente el DOM y los recursos (load state)
-            self.logger.debug(f"\n  --> Esperando que la nueva página cargue completamente (Load state, timeout: {tiempo_espera_max_total}s)...")
-            # --- Medición de rendimiento: Inicio de carga de nueva página ---
-            start_time_new_page_load = time.time()
+            # Bucle de espera para la detección del popup
+            while not self._popup_detectado and (time.time() - start_time_total_operation) < tiempo_espera_max_total:
+                time.sleep(0.1)  # Espera corta para no sobrecargar el CPU
+            
+            end_time_new_page_detection = time.time()
+            duration_new_page_detection = end_time_new_page_detection - start_time_new_page_detection
+            
+            # Validar si el popup fue detectado y el objeto page no está vacío
+            if not self._popup_detectado or self._popup_page is None or self._popup_page.is_closed():
+                raise TimeoutError("No se detectó una nueva pestaña/página o se cerró inesperadamente dentro del tiempo de espera.")
+                
+            self.logger.info(f"PERFORMANCE: Tiempo de detección de la nueva página por el oyente: {duration_new_page_detection:.4f} segundos.")
+            self.logger.info(f"--> Nueva página detectada. URL: {self._popup_page.url}")
+            
+            nueva_pagina = self._popup_page
+            
+            # 3. Esperar a que la nueva página cargue completamente el DOM y los recursos
+            self.logger.debug(f"--> Esperando que la nueva página cargue completamente (Load state)...")
             nueva_pagina.wait_for_load_state("load")
-            # --- Medición de rendimiento: Fin de carga de nueva página ---
-            end_time_new_page_load = time.time()
-            duration_new_page_load = end_time_new_page_load - start_time_new_page_load
-            self.logger.info(f"PERFORMANCE: Tiempo de carga (load state) de la nueva página: {duration_new_page_load:.4f} segundos.")
+            self.logger.info("--> Carga de la nueva página completada (Load state).")
 
-            # 4. Esperar a que un elemento clave de la nueva página sea visible (ej. body o un elemento específico)
-            # Esto es más relevante para el rendimiento percibido por el usuario.
-            self.logger.debug(f"\n  --> Esperando que el 'body' de la nueva página sea visible (timeout: {tiempo_espera_max_total}s)...")
-            # --- Medición de rendimiento: Inicio de visibilidad de contenido de nueva página ---
-            start_time_new_page_content_visible = time.time()
+            # 4. Esperar a que un elemento clave de la nueva página sea visible
+            self.logger.debug(f"--> Esperando que el 'body' de la nueva página sea visible...")
             expect(nueva_pagina.locator("body")).to_be_visible()
-            # --- Medición de rendimiento: Fin de visibilidad de contenido de nueva página ---
-            end_time_new_page_content_visible = time.time()
-            duration_new_page_content_visible = end_time_new_page_content_visible - start_time_new_page_content_visible
-            self.logger.info(f"PERFORMANCE: Tiempo hasta que el 'body' de la nueva página fue visible: {duration_new_page_content_visible:.4f} segundos.")
+            self.logger.info("--> El 'body' de la nueva página es visible.")
 
-            self.logger.info(f"\n✅ Nueva pestaña abierta y detectada: URL = {nueva_pagina.url}, Título = {nueva_pagina.title}")
+            self.logger.info(f"\n✅ Nueva pestaña abierta y detectada: URL = {nueva_pagina.url}, Título = {nueva_pagina.title()}")
             
             # 5. Actualizar self.page para que las subsiguientes operaciones usen la nueva página
+            self.logger.info(f"--> Cambiando el foco de la instancia 'page' actual a la nueva pestaña...")
             self.page = nueva_pagina 
+            
             self.tomar_captura(f"{nombre_base}_nueva_pestana_abierta_y_cargada", directorio)
             
             # --- Medición de rendimiento: Fin total de la función ---
             end_time_total_operation = time.time()
             duration_total_operation = end_time_total_operation - start_time_total_operation
             self.logger.info(f"PERFORMANCE: Tiempo total de la operación (apertura y cambio a nueva pestaña): {duration_total_operation:.4f} segundos.")
-
+            
             return nueva_pagina
 
         except TimeoutError as e:
-            # Captura si la nueva página no se abre o no carga a tiempo.
             end_time_fail = time.time()
             duration_fail = end_time_fail - start_time_total_operation
             error_msg = (
-                f"\n❌ FALLO (Tiempo de espera excedido): No se detectó ninguna nueva pestaña/página después de {tiempo_espera_max_total} segundos "
-                f"al intentar hacer clic en el botón de apertura ('{selector_boton_apertura}'), o la nueva página no cargó completamente/no mostró su contenido.\n"
+                f"\n❌ FALLO (Tiempo de espera excedido): No se detectó ninguna nueva pestaña/página después de {tiempo_espera_max_total} segundos.\n"
                 f"La operación duró {duration_fail:.4f} segundos antes del fallo.\n"
                 f"Detalles: {e}"
             )
             self.logger.error(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_no_se_detecto_popup_timeout", directorio)
-            # Re-lanzar como AssertionError para que el framework de pruebas registre un fallo.
             raise AssertionError(f"\nTimeout al abrir o cargar nueva pestaña para selector '{selector_boton_apertura}'") from e
-            # Retornar None si prefieres manejar el error en el nivel superior y no lanzar.
-            # return None 
         except Error as e:
-            # Captura errores específicos de Playwright (ej. clic fallido).
             error_msg = (
                 f"\n❌ FALLO (Playwright): Error de Playwright al interactuar con el botón o la nueva pestaña.\n"
                 f"Detalles: {e}"
@@ -6248,7 +6076,6 @@ class Funciones_Globales:
             self.tomar_captura(f"{nombre_base}_error_playwright_abrir_pestana", directorio)
             raise AssertionError(f"\nError de Playwright al abrir y cambiar a nueva pestaña para selector '{selector_boton_apertura}'") from e
         except Exception as e:
-            # Captura cualquier otra excepción inesperada.
             error_msg = (
                 f"\n❌ FALLO (Inesperado): Ocurrió un error inesperado al intentar abrir y cambiar a la nueva pestaña.\n"
                 f"Detalles: {e}"
@@ -6257,8 +6084,8 @@ class Funciones_Globales:
             self.tomar_captura(f"{nombre_base}_error_inesperado_abrir_pestana", directorio)
             raise AssertionError(f"\nError inesperado al abrir y cambiar a nueva pestaña para selector '{selector_boton_apertura}'") from e
         finally:
-            # Este bloque se ejecuta siempre, independientemente del resultado.
-            self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
+            self.logger.debug("\n--- Bloque FINALLY: Espera fija de 0.2s y cierre de la operación. ---")
+            self.esperar_fijo(0.2)
 
     # 47- Función que cierra la pestaña actual y, si hay otras pestañas abiertas en el mismo contexto,
     # cambia el foco de la instancia 'page' a la primera pestaña disponible.
@@ -6363,164 +6190,122 @@ class Funciones_Globales:
         
     # 48- Función para hacer clic en un selector y esperar que se abran nuevas ventanas/pestañas.
     # Retorna una lista de objetos Page para las nuevas ventanas.
-    # Integra pruebas de rendimiento para la detección y carga de múltiples páginas.
-    def hacer_clic_y_abrir_nueva_ventana(self, selector: Locator, nombre_base: str, directorio: str, nombre_paso: str = "", tiempo_espera_max_total: Union[int, float] = 3.0) -> List[Page]:
+    # Integrado con una instrumentación de logging más detallada.
+    def hacer_clic_y_abrir_nueva_ventana(self, selector: Locator, nombre_base: str, directorio: str, nombre_paso: str = "", tiempo_espera_max_total: Union[int, float] = 30.0) -> List[Page]:
         """
         Hace clic en un selector y espera que se abran una o más nuevas ventanas/pestañas (popups).
-        Captura las nuevas páginas utilizando un listener global (`context.on("page")`),
-        espera a que cada una cargue completamente y mide el rendimiento del proceso.
-
-        Args:
-            selector (Locator): El **Locator de Playwright** del elemento (ej. botón, enlace)
-                                que, al ser clicado, dispara la apertura de nuevas ventanas/pestañas.
-            nombre_base (str): Nombre base utilizado para las **capturas de pantalla**
-                               tomadas durante la ejecución de la función.
-            directorio (str): **Ruta del directorio** donde se guardarán las capturas de pantalla.
-            nombre_paso (str): Una descripción opcional del paso que se está ejecutando.
-            tiempo_espera_max_total (Union[int, float]): **Tiempo máximo total de espera** (en segundos)
-                                                         para todo el proceso: desde el clic hasta que
-                                                         al menos una nueva página se detecta y se cargan
-                                                         todas las detectadas. Por defecto, `30.0` segundos.
-
-        Returns:
-            List[Page]: Una lista de objetos `Page` que representan las nuevas ventanas/pestañas abiertas
-                        y cargadas correctamente. Retorna una lista vacía si ocurre un `TimeoutError`
-                        o si no se detectan nuevas páginas.
-
-        Raises:
-            AssertionError: Si ocurre un error inesperado durante el clic, la detección o la carga de las páginas.
+        Esta versión utiliza 'context.expect_event' para una sincronización robusta y
+        añade logging detallado para una mejor depuración.
         """
-        self.logger.info(f"\n--- {nombre_paso}: Haciendo clic en '{selector}' para abrir nuevas ventanas/pestañas ---")
+        self.logger.info(f"\n--- {nombre_paso}: Iniciando operación de clic y espera de nueva ventana para el selector '{selector.selector}' ---")
         self.tomar_captura(f"{nombre_base}_antes_clic_nueva_ventana", directorio)
-
-        # Limpiar la lista de páginas detectadas antes de cada interacción.
-        # Esto es crucial para asegurar que solo se capturan las páginas de la ejecución actual.
-        self._all_new_pages_opened_by_click = []
-
-        # --- Medición de rendimiento: Inicio total de la función ---
+        
         start_time_total_operation = time.time()
+        loaded_pages = []
 
         try:
             # 1. Validar que el elemento es visible y habilitado antes de hacer clic
-            self.logger.debug(f"\n  --> Validando visibilidad y habilitación del elemento '{selector}'...")
-            expect(selector).to_be_visible()
-            expect(selector).to_be_enabled()
+            self.logger.debug(f"Paso 1: Validando que el selector '{selector.selector}' sea visible y habilitado.")
+            expect(selector).to_be_visible(timeout=tiempo_espera_max_total * 1000)
+            expect(selector).to_be_enabled(timeout=tiempo_espera_max_total * 1000)
+            self.logger.info("El selector ha sido validado exitosamente. Está visible y habilitado.")
             selector.highlight()
-            self.esperar_fijo(0.2) # Pequeña pausa visual antes del clic
+            self.esperar_fijo(0.2)
 
-            # 2. Hacer clic en el elemento que debería abrir la(s) nueva(s) ventana(s)
-            self.logger.debug(f"\n  --> Realizando clic en '{selector}'...")
-            # --- Medición de rendimiento: Inicio del clic ---
-            start_time_click = time.time()
-            selector.click()
-            # --- Medición de rendimiento: Fin del clic ---
-            end_time_click = time.time()
-            duration_click = end_time_click - start_time_click
-            self.logger.info(f"PERFORMANCE: Tiempo de la acción de clic: {duration_click:.4f} segundos.")
+            # 2. Configurar el listener de Playwright y ejecutar el clic
+            # Este es el punto crítico para evitar condiciones de carrera.
+            self.logger.debug("Paso 2: Configurando el listener 'expect_event' ANTES de ejecutar el clic.")
+            with self.page.context.expect_event("page", timeout=tiempo_espera_max_total * 1000) as event_info:
+                self.logger.debug(f"--> Realizando clic en el selector '{selector.selector}'...")
+                
+                # Medición de rendimiento del clic
+                start_time_click = time.time()
+                selector.click()
+                duration_click = time.time() - start_time_click
+                self.logger.info(f"PERFORMANCE: Tiempo de la acción de clic: {duration_click:.4f} segundos.")
+                
+            self.logger.debug("El listener de Playwright detectó una nueva página después del clic.")
             
-            # 3. Esperar a que al menos una nueva página sea detectada por el listener
-            # Usamos un bucle de espera activa con un timeout para dar tiempo a que los popups aparezcan
-            self.logger.debug(f"\n  --> Esperando detección de nueva(s) ventana(s) por el listener (timeout: {tiempo_espera_max_total}s)...")
-            # --- Medición de rendimiento: Inicio de la espera de detección de páginas ---
-            start_time_page_detection = time.time()
-            wait_for_detection_end_time = time.time() + tiempo_espera_max_total
-            while not self._all_new_pages_opened_by_click and time.time() < wait_for_detection_end_time:
-                time.sleep(0.1) # Pausa breve para evitar consumo excesivo de CPU
-
-            if not self._all_new_pages_opened_by_click:
-                raise TimeoutError(f"\nNo se detectó ninguna nueva ventana/pestaña después de hacer clic en '{selector}' dentro del tiempo de espera de {tiempo_espera_max_total} segundos.")
+            # 3. La nueva página ya fue detectada por Playwright y está disponible
+            new_page = event_info.value
+            if not new_page:
+                # Este caso es raro si el expect_event no lanza un TimeoutError
+                self.logger.warning("El evento 'page' no retornó un objeto de página. Esto podría indicar un problema de sincronización.")
+                raise TimeoutError("El evento 'page' no retornó una nueva página.")
             
-            # --- Medición de rendimiento: Fin de la espera de detección de páginas ---
+            # Medición de rendimiento de la detección de página
             end_time_page_detection = time.time()
-            duration_page_detection = end_time_page_detection - start_time_page_detection
-            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección de la primera nueva página: {duration_page_detection:.4f} segundos.")
+            duration_page_detection = end_time_page_detection - start_time_click
+            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección de la nueva página: {duration_page_detection:.4f} segundos.")
 
-            # 4. Esperar a que cada una de las nuevas páginas cargue completamente
-            self.logger.debug(f"\n  --> Esperando la carga completa de {len(self._all_new_pages_opened_by_click)} nueva(s) página(s)...")
-            loaded_pages = []
-            for i, new_page in enumerate(self._all_new_pages_opened_by_click):
-                try:
-                    self.logger.debug(f"\n    --> Cargando página {i+1}/{len(self._all_new_pages_opened_by_click)}: URL inicial = {new_page.url}")
-                    # --- Medición de rendimiento: Inicio de carga de página individual ---
-                    start_time_single_page_load = time.time()
-                    
-                    # Esperar los estados de carga con el timeout global
-                    new_page.wait_for_load_state("load", timeout=tiempo_espera_max_total * 1000)
-                    new_page.wait_for_load_state("domcontentloaded", timeout=tiempo_espera_max_total * 1000)
-                    new_page.wait_for_load_state("networkidle", timeout=tiempo_espera_max_total * 1000)
-                    
-                    # Opcional: Esperar a que el 'body' o un elemento clave sea visible para garantizar renderizado.
-                    # expect(new_page.locator("body")).to_be_visible(timeout=tiempo_espera_max_total * 1000)
+            # 4. Esperar a que la nueva página cargue completamente
+            self.logger.info(f"Paso 3: Esperando la carga completa de la nueva página (URL: {new_page.url}).")
+            
+            # Medición de rendimiento de la carga de la página
+            start_time_single_page_load = time.time()
+            
+            # Esperar los estados de carga con logging por si uno falla.
+            try:
+                self.logger.debug("--> Esperando el estado de carga 'load'...")
+                new_page.wait_for_load_state("load", timeout=tiempo_espera_max_total * 1000)
+                self.logger.debug("--> Esperando el estado de carga 'domcontentloaded'...")
+                new_page.wait_for_load_state("domcontentloaded", timeout=tiempo_espera_max_total * 1000)
+                self.logger.debug("--> Esperando el estado de carga 'networkidle'...")
+                new_page.wait_for_load_state("networkidle", timeout=tiempo_espera_max_total * 1000)
 
-                    # --- Medición de rendimiento: Fin de carga de página individual ---
-                    end_time_single_page_load = time.time()
-                    duration_single_page_load = end_time_single_page_load - start_time_single_page_load
-                    self.logger.info(f"PERFORMANCE: Tiempo de carga completa para página {i+1} (URL: {new_page.url}): {duration_single_page_load:.4f} segundos.")
-                    
-                    self.logger.info(f"\n  ✅ Nueva página cargada exitosamente: URL = {new_page.url}, Título = {new_page.title}")
-                    self.tomar_captura(f"{nombre_base}_pagina_abierta_{i+1}", directorio, page_to_capture=new_page)
-                    loaded_pages.append(new_page)
+                duration_single_page_load = time.time() - start_time_single_page_load
+                self.logger.info(f"PERFORMANCE: Tiempo de carga completa: {duration_single_page_load:.4f} segundos.")
+                
+                self.logger.info(f"\n✅ Nueva página cargada exitosamente: URL = {new_page.url}, Título = {new_page.title}")
+                self.tomar_captura(f"{nombre_base}_pagina_abierta", directorio)
+                loaded_pages.append(new_page)
 
-                except TimeoutError as te:
-                    self.logger.error(f"\n  ❌ FALLO: Tiempo de espera excedido al cargar la página {i+1} (URL: {new_page.url}). Detalles: {te}")
-                    self.tomar_captura(f"{nombre_base}_pagina_no_cargada_{i+1}", directorio, page_to_capture=new_page)
-                except Error as pe:
-                    self.logger.error(f"\n  ❌ FALLO: Error de Playwright al interactuar con la página {i+1} (URL: {new_page.url}). Detalles: {pe}")
-                    self.tomar_captura(f"{nombre_base}_pagina_error_playwright_{i+1}", directorio, page_to_capture=new_page)
-                except Exception as ex:
-                    self.logger.error(f"\n  ❌ FALLO: Error inesperado al cargar la página {i+1} (URL: {new_page.url}). Detalles: {ex}")
-                    self.tomar_captura(f"{nombre_base}_pagina_error_inesperado_{i+1}", directorio, page_to_capture=new_page)
+            except TimeoutError as te:
+                self.logger.error(f"\n❌ FALLO: Tiempo de espera excedido al cargar la nueva página (URL: {new_page.url}). Esto pudo ocurrir en alguno de los estados de carga ('load', 'domcontentloaded', 'networkidle'). Detalles: {te}")
+                self.tomar_captura(f"{nombre_base}_pagina_no_cargada", directorio)
+                # Eleva la excepción de nuevo para que sea capturada por el bloque de excepción principal
+                raise
 
+            # 5. Validación final
             if not loaded_pages:
-                self.logger.error(f"\n ❌ FALLO: Ninguna de las nuevas ventanas/pestañas se cargó correctamente.")
-                self.tomar_captura(f"{nombre_base}_ninguna_ventana_cargada", directorio)
-                # Re-lanzar un AssertionError si no se pudo cargar ninguna página
-                raise AssertionError("\nNinguna de las nuevas ventanas/pestañas se cargó correctamente.")
+                self.logger.error(f"\n❌ FALLO: No se cargó correctamente ninguna página. Se detectó una, pero la carga falló.")
+                raise AssertionError("Ninguna de las nuevas ventanas/pestañas se cargó correctamente.")
 
             self.tomar_captura(f"{nombre_base}_despues_clic_nueva_ventana_final", directorio)
-            self.logger.info(f"\n✅ Se han detectado y cargado {len(loaded_pages)} de {len(self._all_new_pages_opened_by_click)} nueva(s) ventana(s) con éxito.")
+            self.logger.info(f"\n✅ Operación completada: se ha detectado y cargado {len(loaded_pages)} nueva(s) ventana(s) con éxito.")
             
-            # --- Medición de rendimiento: Fin total de la función ---
-            end_time_total_operation = time.time()
-            duration_total_operation = end_time_total_operation - start_time_total_operation
-            self.logger.info(f"PERFORMANCE: Tiempo total de la operación (hacer clic y abrir/cargar nuevas ventanas): {duration_total_operation:.4f} segundos.")
+            duration_total_operation = time.time() - start_time_total_operation
+            self.logger.info(f"PERFORMANCE: Tiempo total de la operación: {duration_total_operation:.4f} segundos.")
 
             return loaded_pages
 
         except TimeoutError as e:
             error_msg = (
-                f"\n❌ FALLO (Tiempo de espera excedido) - {nombre_paso}: No se detectó ninguna nueva ventana "
-                f"después de hacer clic en '{selector}' dentro del tiempo de espera de {tiempo_espera_max_total} segundos, "
-                f"o el elemento no estuvo visible/habilitado a tiempo.\nDetalles: {e}"
+                f"\n❌ FALLO (Tiempo de espera excedido): El elemento '{selector.selector}' no estuvo visible/habilitado a tiempo o no se detectó el evento 'page' dentro de {tiempo_espera_max_total}s."
+                f" Detalles: {e}"
             )
             self.logger.error(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_no_nueva_ventana_timeout", directorio)
-            # Re-lanzar como AssertionError para que el test falle correctamente.
             raise AssertionError(error_msg) from e
 
         except Error as e:
-            error_msg = (
-                f"\n❌ FALLO (Playwright) - {nombre_paso}: Error de Playwright al hacer clic o al detectar/interactuar con las nuevas ventanas.\nDetalles: {e}"
-            )
+            error_msg = f"\n❌ FALLO (Playwright): Un error de Playwright ocurrió durante la operación de clic o interacción con las ventanas. Detalles: {e}"
             self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_playwright_abrir_ventanas", directorio)
             raise AssertionError(error_msg) from e
 
         except AssertionError as e:
-            # Captura las aserciones lanzadas internamente (ej. ninguna página cargada correctamente)
-            self.logger.critical(f"\n❌ FALLO (Validación) - {nombre_paso}: {e}", exc_info=True)
-            raise # Re-lanzar la excepción original para que el test falle
+            self.logger.critical(f"\n❌ FALLO (Validación): La operación fue abortada por una validación interna. Detalles: {e}", exc_info=True)
+            raise
 
         except Exception as e:
-            error_msg = (
-                f"\n❌ FALLO (Inesperado) - {nombre_paso}: Ocurrió un error inesperado al intentar abrir nuevas ventanas.\nDetalles: {e}"
-            )
+            error_msg = f"\n❌ FALLO (Inesperado): Ocurrió un error inesperado al intentar abrir nuevas ventanas. Detalles: {e}"
             self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_inesperado_abrir_nueva_ventana", directorio)
             raise AssertionError(error_msg) from e
 
         finally:
-            self.esperar_fijo(0.2) # Pequeña espera final para observación o liberar recursos.
+            self.esperar_fijo(0.2)
 
     # 49- Función para cambiar el foco del navegador a una ventana/pestaña específica,
     # ya sea por su índice (int) o por una parte de su URL o título (str).

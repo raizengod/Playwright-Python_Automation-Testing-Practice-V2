@@ -13,7 +13,17 @@ class AlertsPopupsLocatorsPage:
     #Selector de botón Confirmation Alert
     @property
     def botonConfirmationAlert(self):
-        return self.page.locator("#HTML9").get_by_text("Confirmation Alert")
+        return self.page.get_by_role("button", name="Confirmation Alert")
+    
+    #Selector de mensaje de acción confirmada
+    @property
+    def mensajeConfirmacionDeAceptado(self):
+        return self.page.get_by_text('You pressed OK!')
+    
+    #Selector de mensaje de acción confirmada
+    @property
+    def mensajeConfirmacionDeRechazado(self):
+        return self.page.get_by_text('You pressed Cancel!')
     
     #Selector de mensaje de acción confirmada
     @property

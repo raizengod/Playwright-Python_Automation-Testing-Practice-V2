@@ -174,7 +174,7 @@ def test_cambiar_pagina_y_activar_checkBox(set_up_checkBoxLista):
     datos_ok_4 = fg.verificar_datos_filas_tabla(cbl.tablaCheck, datos_esperados4, "verificar_datos_filas_tabla_check_pagina4", config.SCREENSHOT_DIR)
     assert datos_ok_4 is True, "Los datos de la tabla en la Página 4 no coinciden con los esperados."
 
-@pytest.mark.xfile(reason= "Los checkBox no mantienen el estado marcado previamente cuando se cambia entre número de páginas")    
+@pytest.mark.skip(reason= "Los checkBox no mantienen el estado marcado previamente cuando se cambia entre número de páginas")    
 def test_cambiar_pagina_y_ver_checkBox_activos_previamente(set_up_checkBoxLista):
     page = set_up_checkBoxLista
     

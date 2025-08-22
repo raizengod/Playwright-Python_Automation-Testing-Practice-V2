@@ -19,6 +19,7 @@ def test_ir_a_opcion_playwright(set_up_ir_a):
     ml= MenuLocatorsPage(page)
 
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
+    fg.esperar_fijo(1)
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
     #Luego del paso anterior, ahora si podemos llamar a nuestras funciones creadas en el archivo POM
     fg.esperar_fijo(1)
