@@ -149,7 +149,7 @@ def set_up_by_role(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # 1. Valida que la URL actual sea la de la página de inicio
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    
+       
     fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
     
     # 2. Hace clic en el enlace que lleva a la página de práctica de Playwright
@@ -338,6 +338,36 @@ def set_up_byTestId(playwright_page: Page) -> Generator[Page, None, None]:
     
     # 5. Se desplaza verticalmente 3000 píxeles
     fg.scroll_pagina(0, 3000)
+    
+    # El 'yield' devuelve el objeto 'page' a la prueba para su uso
+    yield playwright_page
+    
+@pytest.fixture(scope="function")
+def set_up_cargarArchivo(playwright_page: Page) -> Generator[Page, None, None]:
+    """
+    Fixture de configuración para pruebas de 'cargarArchivos'.
+    
+    Configura el entorno y se desplaza hacia abajo para asegurar la visibilidad
+    de los elementos con atributos 'data-testid'.
+    """
+    # Navega a la URL base y configura el timeout por defecto
+    playwright_page.goto(config.BASE_URL, wait_until="domcontentloaded")
+    playwright_page.set_default_timeout(10000)
+    
+    # Inicializa las clases de funciones globales y localizadores del menú
+    fg = Funciones_Globales(playwright_page)
+    ml = MenuLocatorsPage(playwright_page)
+    
+    # PRE-CONDICIONES:
+    # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
+    fg.validar_url_actual("https://testautomationpractice.blogspot.com")
+    fg.esperar_fijo(1)
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.validar_url_actual(".*/p/playwrightpractice.html")
+    fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
+    
+    # 5. Se desplaza verticalmente 3800 píxeles
+    fg.scroll_pagina(0, 3800)
     
     # El 'yield' devuelve el objeto 'page' a la prueba para su uso
     yield playwright_page
