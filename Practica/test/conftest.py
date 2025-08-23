@@ -183,7 +183,7 @@ def set_up_byText(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, hace clic en el enlace y valida la nueva URL y el título de la página
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
+    playwright_page.wait_for_selector(ml.irAPlaywright)
     fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
