@@ -33,7 +33,7 @@ jobs:
           # Aquí estoy simplificando el comando para que pytest genere el reporte HTML directamente
           # Si necesitas el orden específico y el template, ajusta el comando según tu necesidad.
           # Asegúrate de que 'reportes/html1/' exista o pytest lo creará.
-          pytest Practica/test/test_getByRole.py Practica/test/test_getByText.py Practica/test/test_getByLabel.py Practica/test/test_getByPlaceholder.py Practica/test/test_getByAltText.py Practica/test/test_getByTitle.py Practica/test/test_getByTestId.py Practica/test/test_cargarArchivo.py Practica/test/test_tablaEstatica.py Practica/test/test_tablaDinamica.py Practica/test/test_checkBoxLista.py test_alertsAndPopups.py -s -v -n 10 --template=html1/index.html --report=reportes/html1/playwright_reporte.html
+          pytest Practica/test/test_getByRole.py Practica/test/test_getByText.py Practica/test/test_getByLabel.py Practica/test/test_getByPlaceholder.py Practica/test/test_getByAltText.py Practica/test/test_getByTitle.py Practica/test/test_getByTestId.py Practica/test/test_cargarArchivo.py Practica/test/test_tablaEstatica.py Practica/test/test_tablaDinamica.py Practica/test/test_checkBoxLista.py Practica/test/test_alertsAndPopups.py -s -v -n 10 --template=html1/index.html --report=reportes/html1/playwright_reporte.html
         
       - name: Subir informe de pruebas de Playwright (para debugging o descarga)
         uses: actions/upload-artifact@v4
