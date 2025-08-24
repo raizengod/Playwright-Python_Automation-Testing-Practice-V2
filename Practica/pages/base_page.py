@@ -9522,6 +9522,42 @@ class Funciones_Globales:
             if tiempo > 0:
                 self.esperar_fijo(tiempo)"""
     
+    # 78- Función para intenta cerrar banners, popups o elementos que puedan tapar la pantalla.
+    def manejar_obstaculos_en_pagina(self, obstaculos_locators: list, timeout: float = 5.0):
+        """
+        Intenta cerrar banners, popups o elementos que puedan tapar la pantalla.
+        
+        Args:
+            obstaculos_locators (list): Lista de localizadores de los elementos a cerrar.
+            timeout (float): Tiempo máximo de espera para cada intento.
+        """
+        self.logger.info("\n🔄 Intentando cerrar posibles obstáculos en la página...")
+        
+        for locator_info in obstaculos_locators:
+            # Extraemos el localizador y el nombre del obstáculo para el log
+            locator_str = locator_info.get("locator")
+            nombre = locator_info.get("nombre", "obstáculo genérico")
+            
+            # Intentamos localizar el elemento con un timeout corto
+            obstaculo_locator = self.page.locator(locator_str)
+            
+            try:
+                # Espera a que el elemento sea visible y luego intenta hacer clic
+                expect(obstaculo_locator).to_be_visible(timeout=timeout * 1000)
+                self.logger.info(f"✅ Se detectó '{nombre}'. Intentando hacer clic para cerrarlo.")
+                obstaculo_locator.click()
+                self.logger.info(f"✔ '{nombre}' ha sido cerrado exitosamente.")
+                # Salimos del bucle si encontramos y cerramos un obstáculo, ya que no puede haber más
+                return True
+                
+            except TimeoutError:
+                self.logger.debug(f"❌ '{nombre}' no se detectó. Continuando...")
+            except Exception as e:
+                self.logger.warning(f"❗ Ocurrió un error al intentar cerrar '{nombre}': {e}")
+                
+        self.logger.info("✅ No se encontraron obstáculos conocidos o todos fueron manejados.")
+        return False
+    
     # --- Manejadores y funciones para Alertas y Confirmaciones ---
 
     # Handler para alertas simples (usado con page.once).

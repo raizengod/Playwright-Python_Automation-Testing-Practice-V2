@@ -12,6 +12,8 @@ from Practica.pages.base_page import Funciones_Globales
 from Practica.locator.locator_barraMenu import MenuLocatorsPage
 from Practica.locator.locator_getByRole import RoleLocatorsPage
 from Practica.locator.locator_getByText import TextLocatorsPage
+from Practica.locator.locator_obstaculoPantalla import ObstaculosLocators
+
 
 # Función para generar IDs legibles
 def generar_ids_browser(param):
@@ -149,11 +151,10 @@ def set_up_by_role(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # 1. Valida que la URL actual sea la de la página de inicio
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-       
-    fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
-    
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
     # 2. Hace clic en el enlace que lleva a la página de práctica de Playwright
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     
     # 3. Valida que la nueva URL sea la de la página de práctica
     fg.validar_url_actual(".*/p/playwrightpractice.html")
@@ -183,8 +184,9 @@ def set_up_byText(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, hace clic en el enlace y valida la nueva URL y el título de la página
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    playwright_page.wait_for_selector(ml.irAPlaywright)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -213,7 +215,9 @@ def set_up_byLabel(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, hace clic en el enlace y valida la nueva URL y el título de la página
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -243,7 +247,9 @@ def set_up_byPlaceholder(playwright_page: Page) -> Generator[Page, None, None]:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
     fg.esperar_fijo(1) # Espera fija para asegurar la estabilidad
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -272,8 +278,9 @@ def set_up_byAtlText(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -302,8 +309,9 @@ def set_up_byTitle(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -332,8 +340,9 @@ def set_up_byTestId(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -362,8 +371,9 @@ def set_up_cargarArchivo(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -392,8 +402,9 @@ def set_up_manejodDeTabla(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -422,8 +433,9 @@ def set_up_checkBoxLista(playwright_page: Page) -> Generator[Page, None, None]:
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
@@ -452,8 +464,9 @@ def set_up_AlertsAndPopups(playwright_page: Page) -> Generator[Page, None, None]
     # PRE-CONDICIONES:
     # Valida URL, espera un segundo, hace clic, y valida la nueva URL y el título
     fg.validar_url_actual("https://testautomationpractice.blogspot.com")
-    fg.esperar_fijo(1)
-    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice")
+    fg.manejar_obstaculos_en_pagina(ObstaculosLocators.LISTA_DE_OBSTACULOS)
+    expect(ml.irAPlaywright).to_be_visible()
+    fg.hacer_click_en_elemento(ml.irAPlaywright, "Clic_PlaywrightPractice", config.SCREENSHOT_DIR, "PlaywrightPractice", 15)
     fg.validar_url_actual(".*/p/playwrightpractice.html")
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     
