@@ -103,9 +103,14 @@ class MouseActionsLocatorsPage:
     #Selector de titulo comboBox
     @property
     def tituloComboBox(self):
-        return self.page.locator("#HTML17").get_by_role("heading", name="Scrolling DropDown")
+        return self.page.get_by_role("heading", name="Scrolling DropDown")
     
     #Selector de comboBox
     @property
     def comboBox(self):
-        return self.page.locator("//*[@id='HTML17']").get_by_role("textbox", name="Select an item")
+        return self.page.get_by_role("textbox", name="Select an item")
+    
+    #Selector de opción comboBox
+    @property
+    def opcionComboBox(self):
+        return self.page.locator("div.option")
