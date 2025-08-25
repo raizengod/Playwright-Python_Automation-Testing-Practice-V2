@@ -7,6 +7,8 @@ from Practica.pages.base_page import Funciones_Globales
 from Practica.locator.locator_AlertsAndPopups import AlertsPopupsLocatorsPage
 from Practica.utils import config
 from Practica.utils.logger import setup_logger
+import traceback # Debes importar este módulo al inicio del archivo
+
 
 def test_ver_simple_alert(set_up_AlertsAndPopups):
     page= set_up_AlertsAndPopups
@@ -93,7 +95,7 @@ def test_ver_nuevo_tab(set_up_AlertsAndPopups):
     fg.validar_titulo_de_web("Automation Testing Practice: PlaywrightPractice", "validar_titulo_de_web", config.SCREENSHOT_DIR)
     fg.esperar_fijo(2)
 
-@pytest.mark.skip(reason="A veces falla cuando se ejecutan todos los archivos de pruebas, pero funciona si se ejecuta unicamente test_alertsAndPopups.py")    
+#@pytest.mark.skip(reason="A veces falla cuando se ejecutan todos los archivos de pruebas, pero funciona si se ejecuta unicamente test_alertsAndPopups.py")    
 def test_ver_nueva_ventana(set_up_AlertsAndPopups):
     page_original = set_up_AlertsAndPopups # Guardamos la referencia a la página ORIGINAL
 
@@ -102,7 +104,7 @@ def test_ver_nueva_ventana(set_up_AlertsAndPopups):
 
     # Definir nombre_base_test y directorio_capturas antes de usarlos
     nombre_base_test = "TestNuevaVentana"
-
+    
     # --- Inicia el bloque principal de try-except ---
     try:
         # Paso 1: Realizar la acción que abre la(s) nueva(s) ventana(s)
@@ -131,22 +133,20 @@ def test_ver_nueva_ventana(set_up_AlertsAndPopups):
         # Validar la página de Selenium
         print("\n--- Validando contenido de la ventana de Selenium ---")
         fg.verificar_texto_contenido(
-            locator=selenium_page[0].locator("h1.text-gray-900"),
-            texto_esperado="Selenium automates browsers. That's it!",
-            nombre_base=f"{nombre_base_test}_selenium",
-            directorio=config.SCREENSHOT_DIR,
-            nombre_paso="Verificar texto en ventana de Selenium"
+            selenium_page[0].get_by_role("heading", name="Selenium automates browsers."),
+            "Selenium automates browsers. That's it!",
+            f"{nombre_base_test}_selenium",
+            config.SCREENSHOT_DIR
         )
         print("✅ Aserciones en la ventana de Selenium pasadas exitosamente.")
 
         # Validar la página de Playwright
         print("\n--- Validando contenido de la ventana de Playwright ---")
         fg.verificar_texto_contenido(
-            locator=playwright_page[0].locator("h1.docTitle_p06K"),
-            texto_esperado="Playwright enables reliable end-to-end testing for modern web apps.",
-            nombre_base=f"{nombre_base_test}_playwright",
-            directorio=config.SCREENSHOT_DIR,
-            nombre_paso="Verificar texto en ventana de Playwright"
+            playwright_page[0].get_by_role("heading", name="Playwright enables reliable"),
+            "Playwright enables reliable end-to-end testing for modern web apps.",
+            f"{nombre_base_test}_playwright",
+            config.SCREENSHOT_DIR,
         )
         print("✅ Aserciones en la ventana de Playwright pasadas exitosamente.")
 
@@ -159,7 +159,7 @@ def test_ver_nueva_ventana(set_up_AlertsAndPopups):
         # No se necesita una espera, Playwright lo maneja automáticamente
         print("\n--- Verificando que el foco haya regresado a la página original ---")
         assert len(page_original.context.pages) == 1, "No se regresó a la página original, o hay ventanas extras abiertas."
-        assert page_original.is_visible(), "La página original no está visible después de cerrar las ventanas."
+        assert page_original.locator('h1').is_visible(), "La página original no está visible después de cerrar las ventanas."
         assert "playwrightpractice.html" in page_original.url, "La URL no corresponde a la página original."
         print("✅ Foco regresado exitosamente a la página original.")
 
@@ -170,6 +170,13 @@ def test_ver_nueva_ventana(set_up_AlertsAndPopups):
         fg.tomar_captura(f"{nombre_base_test}_FALLO", config.SCREENSHOT_DIR)
         raise e
     except Exception as e:
-        print(f"\n❌ El test falló debido a un error inesperado: {e}", exc_info=True)
+        # 1. Obtenemos la traza de la pila completa como una cadena de texto
+        traceback_info = traceback.format_exc()
+        
+        # 2. Imprimimos el mensaje de error y la traza de la pila
+        print(f"\n❌ El test falló debido a un error inesperado: {e}\n")
+        print(traceback_info)
+
+        # 3. Mantenemos las otras acciones
         fg.tomar_captura(f"{nombre_base_test}_FALLO_FINAL", config.SCREENSHOT_DIR)
         raise e

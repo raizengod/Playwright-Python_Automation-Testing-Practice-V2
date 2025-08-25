@@ -346,7 +346,7 @@ class Funciones_Globales:
             self.tomar_captura(f"{nombre_base}_estado_final_no_visible", directorio=directorio)
 
     # 8- Función para verificar que un elemento (o elementos) localizado en una página web contiene un texto específico
-    def verificar_texto_contenido(self, selector: Union[str, Page.locator], texto_esperado: str, nombre_base: str, directorio: str, tiempo: Union[int, float] = 0.5):
+    def verificar_texto_contenido(self, selector: Union[str, Locator], texto_esperado: str, nombre_base: str, directorio: str, tiempo: Union[int, float] = 0.5):
         """
         Verifica que un elemento localizado en una página web **contiene un texto específico**.
         Esta función está optimizada para **integrar métricas de rendimiento básicas**, midiendo
@@ -6189,87 +6189,64 @@ class Funciones_Globales:
             self.esperar_fijo(0.2) # Pequeña espera final para observación o para liberar recursos.
         
     # 48- Función para hacer clic en un selector y esperar que se abran nuevas ventanas/pestañas.
-    # Retorna una lista de objetos Page para las nuevas ventanas.
-    # Integrado con una instrumentación de logging más detallada.
     def hacer_clic_y_abrir_nueva_ventana(self, selector: Locator, nombre_base: str, directorio: str, nombre_paso: str = "", tiempo_espera_max_total: Union[int, float] = 30.0) -> List[Page]:
         """
         Hace clic en un selector y espera que se abran una o más nuevas ventanas/pestañas (popups).
-        Esta versión utiliza 'context.expect_event' para una sincronización robusta y
-        añade logging detallado para una mejor depuración.
+        Esta versión utiliza un bucle con un listener de Playwright para capturar múltiples ventanas.
         """
-        self.logger.info(f"\n--- {nombre_paso}: Iniciando operación de clic y espera de nueva ventana para el selector '{selector.selector}' ---")
+        self.logger.info(f"\n--- {nombre_paso}: Iniciando operación de clic y espera de nueva ventana para el selector '{selector}' ---")
         self.tomar_captura(f"{nombre_base}_antes_clic_nueva_ventana", directorio)
         
         start_time_total_operation = time.time()
+        all_pages = self.page.context.pages # Almacena las páginas existentes antes del clic
         loaded_pages = []
 
         try:
             # 1. Validar que el elemento es visible y habilitado antes de hacer clic
-            self.logger.debug(f"Paso 1: Validando que el selector '{selector.selector}' sea visible y habilitado.")
+            self.logger.debug(f"Paso 1: Validando que el selector '{selector}' sea visible y habilitado.")
             expect(selector).to_be_visible(timeout=tiempo_espera_max_total * 1000)
             expect(selector).to_be_enabled(timeout=tiempo_espera_max_total * 1000)
             self.logger.info("El selector ha sido validado exitosamente. Está visible y habilitado.")
             selector.highlight()
             self.esperar_fijo(0.2)
-
-            # 2. Configurar el listener de Playwright y ejecutar el clic
-            # Este es el punto crítico para evitar condiciones de carrera.
-            self.logger.debug("Paso 2: Configurando el listener 'expect_event' ANTES de ejecutar el clic.")
-            with self.page.context.expect_event("page", timeout=tiempo_espera_max_total * 1000) as event_info:
-                self.logger.debug(f"--> Realizando clic en el selector '{selector.selector}'...")
+            
+            # 2. Realizar el clic
+            self.logger.debug(f"--> Realizando clic en el selector '{selector}'...")
+            start_time_click = time.time()
+            selector.click()
+            duration_click = time.time() - start_time_click
+            self.logger.info(f"PERFORMANCE: Tiempo de la acción de clic: {duration_click:.4f} segundos.")
+            
+            # 3. Esperar que se abran las nuevas páginas
+            end_time = time.time() + tiempo_espera_max_total
+            self.logger.info("Paso 2: Esperando la(s) nueva(s) ventana(s) hasta que no se abran más o se agote el tiempo.")
+            
+            while time.time() < end_time:
+                # Captura todas las nuevas páginas que aparecieron después del clic
+                nuevas_paginas = [p for p in self.page.context.pages if p not in all_pages and p not in loaded_pages]
                 
-                # Medición de rendimiento del clic
-                start_time_click = time.time()
-                selector.click()
-                duration_click = time.time() - start_time_click
-                self.logger.info(f"PERFORMANCE: Tiempo de la acción de clic: {duration_click:.4f} segundos.")
+                if nuevas_paginas:
+                    self.logger.info(f"✅ Se detectaron {len(nuevas_paginas)} nueva(s) ventana(s).")
+                    for new_page in nuevas_paginas:
+                        # Esperar a que cada nueva página cargue completamente
+                        self.logger.info(f"Paso 3: Esperando la carga completa de la nueva página (URL: {new_page.url}).")
+                        try:
+                            new_page.wait_for_load_state("networkidle", timeout=(end_time - time.time()) * 1000)
+                            self.logger.info(f"🌐 Nueva página cargada exitosamente: URL = {new_page.url}, Título = {new_page.title()}")
+                            self.tomar_captura(f"{nombre_base}_pagina_abierta_{len(loaded_pages)+1}", directorio)
+                            loaded_pages.append(new_page)
+                        except TimeoutError as te:
+                            self.logger.error(f"\n❌ FALLO: Tiempo de espera excedido al cargar la nueva página (URL: {new_page.url}). Detalles: {te}")
+                            raise
                 
-            self.logger.debug("El listener de Playwright detectó una nueva página después del clic.")
+                # Si no hay nuevas páginas, esperamos un momento y verificamos de nuevo
+                if not nuevas_paginas:
+                    time.sleep(0.5)
             
-            # 3. La nueva página ya fue detectada por Playwright y está disponible
-            new_page = event_info.value
-            if not new_page:
-                # Este caso es raro si el expect_event no lanza un TimeoutError
-                self.logger.warning("El evento 'page' no retornó un objeto de página. Esto podría indicar un problema de sincronización.")
-                raise TimeoutError("El evento 'page' no retornó una nueva página.")
-            
-            # Medición de rendimiento de la detección de página
-            end_time_page_detection = time.time()
-            duration_page_detection = end_time_page_detection - start_time_click
-            self.logger.info(f"PERFORMANCE: Tiempo desde el clic hasta la detección de la nueva página: {duration_page_detection:.4f} segundos.")
-
-            # 4. Esperar a que la nueva página cargue completamente
-            self.logger.info(f"Paso 3: Esperando la carga completa de la nueva página (URL: {new_page.url}).")
-            
-            # Medición de rendimiento de la carga de la página
-            start_time_single_page_load = time.time()
-            
-            # Esperar los estados de carga con logging por si uno falla.
-            try:
-                self.logger.debug("--> Esperando el estado de carga 'load'...")
-                new_page.wait_for_load_state("load", timeout=tiempo_espera_max_total * 1000)
-                self.logger.debug("--> Esperando el estado de carga 'domcontentloaded'...")
-                new_page.wait_for_load_state("domcontentloaded", timeout=tiempo_espera_max_total * 1000)
-                self.logger.debug("--> Esperando el estado de carga 'networkidle'...")
-                new_page.wait_for_load_state("networkidle", timeout=tiempo_espera_max_total * 1000)
-
-                duration_single_page_load = time.time() - start_time_single_page_load
-                self.logger.info(f"PERFORMANCE: Tiempo de carga completa: {duration_single_page_load:.4f} segundos.")
-                
-                self.logger.info(f"\n✅ Nueva página cargada exitosamente: URL = {new_page.url}, Título = {new_page.title}")
-                self.tomar_captura(f"{nombre_base}_pagina_abierta", directorio)
-                loaded_pages.append(new_page)
-
-            except TimeoutError as te:
-                self.logger.error(f"\n❌ FALLO: Tiempo de espera excedido al cargar la nueva página (URL: {new_page.url}). Esto pudo ocurrir en alguno de los estados de carga ('load', 'domcontentloaded', 'networkidle'). Detalles: {te}")
-                self.tomar_captura(f"{nombre_base}_pagina_no_cargada", directorio)
-                # Eleva la excepción de nuevo para que sea capturada por el bloque de excepción principal
-                raise
-
-            # 5. Validación final
+            # 4. Validación final
             if not loaded_pages:
-                self.logger.error(f"\n❌ FALLO: No se cargó correctamente ninguna página. Se detectó una, pero la carga falló.")
-                raise AssertionError("Ninguna de las nuevas ventanas/pestañas se cargó correctamente.")
+                self.logger.error("\n❌ FALLO: No se cargó correctamente ninguna página.")
+                raise AssertionError("No se detectaron nuevas ventanas/pestañas después del clic.")
 
             self.tomar_captura(f"{nombre_base}_despues_clic_nueva_ventana_final", directorio)
             self.logger.info(f"\n✅ Operación completada: se ha detectado y cargado {len(loaded_pages)} nueva(s) ventana(s) con éxito.")
@@ -6280,30 +6257,17 @@ class Funciones_Globales:
             return loaded_pages
 
         except TimeoutError as e:
-            error_msg = (
-                f"\n❌ FALLO (Tiempo de espera excedido): El elemento '{selector.selector}' no estuvo visible/habilitado a tiempo o no se detectó el evento 'page' dentro de {tiempo_espera_max_total}s."
-                f" Detalles: {e}"
-            )
+            error_msg = f"\n❌ FALLO (Tiempo de espera excedido): El elemento '{selector}' no estuvo visible/habilitado a tiempo o no se detectaron nuevas ventanas dentro de {tiempo_espera_max_total}s. Detalles: {e}"
             self.logger.error(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_no_nueva_ventana_timeout", directorio)
             raise AssertionError(error_msg) from e
-
-        except Error as e:
-            error_msg = f"\n❌ FALLO (Playwright): Un error de Playwright ocurrió durante la operación de clic o interacción con las ventanas. Detalles: {e}"
-            self.logger.critical(error_msg, exc_info=True)
-            self.tomar_captura(f"{nombre_base}_error_playwright_abrir_ventanas", directorio)
-            raise AssertionError(error_msg) from e
-
-        except AssertionError as e:
-            self.logger.critical(f"\n❌ FALLO (Validación): La operación fue abortada por una validación interna. Detalles: {e}", exc_info=True)
-            raise
-
+        
         except Exception as e:
             error_msg = f"\n❌ FALLO (Inesperado): Ocurrió un error inesperado al intentar abrir nuevas ventanas. Detalles: {e}"
             self.logger.critical(error_msg, exc_info=True)
             self.tomar_captura(f"{nombre_base}_error_inesperado_abrir_nueva_ventana", directorio)
             raise AssertionError(error_msg) from e
-
+        
         finally:
             self.esperar_fijo(0.2)
 
@@ -6512,7 +6476,7 @@ class Funciones_Globales:
             self.logger.info(f"PERFORMANCE: Tiempo de verificación si es la página actual: {duration_is_current_page_check:.4f} segundos.")
 
             self.logger.debug(f"\n  --> Tomando captura antes de cerrar la pestaña: {closed_url}")
-            self.tomar_captura(f"{nombre_base}_antes_de_cerrar_especifica", directorio, page_to_capture=page_to_close)
+            self.tomar_captura(f"{nombre_base}_antes_de_cerrar_especifica", directorio)
             
             # 2. Cerrar la pestaña específica
             self.logger.debug(f"\n  --> Procediendo a cerrar la pestaña: {closed_url}")
@@ -6541,7 +6505,7 @@ class Funciones_Globales:
                     self.logger.info(f"PERFORMANCE: Tiempo de cambio de foco a la nueva pestaña activa: {duration_switch_focus:.4f} segundos.")
 
                     self.logger.info(f"\n🔄 Foco cambiado automáticamente a la primera pestaña disponible: URL = {self.page.url}")
-                    self.tomar_captura(f"{nombre_base}_foco_cambiado_despues_cerrar", directorio, page_to_capture=self.page)
+                    self.tomar_captura(f"{nombre_base}_foco_cambiado_despues_cerrar", directorio)
                 else:
                     self.logger.warning("\n⚠️ No hay más pestañas abiertas en el contexto del navegador. La instancia 'self.page' ahora es None.")
                     self.page = None # No hay página activa en este contexto
